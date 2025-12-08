@@ -8,6 +8,9 @@ Config.VisualFeedback = {
     -- Utiliser l'outline (contour coloré autour de l'entité)
     useOutline = true,
     
+    -- Afficher l'outline sur toutes les entités (true) ou uniquement sur les targetables (false)
+    showOutlineOnAll = false,
+    
     -- Utiliser le marker (marqueur 3D au-dessus de l'entité)
     useMarker = true,
     

@@ -32,11 +32,18 @@ function Raycast:TargetCoords(screenPosition, maxDistance, flags, ignoreEntity)
     
     local retval, hit, worldPosition, normalDirection, materialHash, entity = GetShapeTestResultIncludingMaterial(rayHandle)
 
-    if hit == 1 then
-        return true, worldPosition, normalDirection, entity, materialHash
-    else
-        return false, vector3(0, 0, 0), vector3(0, 0, 0), nil, materialHash
+    if hit == 1 and entity and entity ~= 0 then
+        local playerPed = PlayerPedId()
+        local playerCoords = GetEntityCoords(playerPed)
+        local entityCoords = GetEntityCoords(entity)
+        local distance = #(playerCoords - entityCoords)
+        
+        if distance >= (Config.Target.minDistance or 0.1) then
+            return true, worldPosition, normalDirection, entity, materialHash
+        end
     end
+    
+    return false, vector3(0, 0, 0), vector3(0, 0, 0), nil, materialHash
 end
 
 local VisualFeedback = {

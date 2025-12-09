@@ -88,13 +88,92 @@ function closeMenu(sendCallback = true) {
 
 function refreshMenu(options) {
     if (!State.isOpen) return;
+    
     if (!options || options.length === 0) {
         closeMenu();
         return;
     }
     
+    const oldOptions = State.options;
     State.options = options;
-    buildMenuItems(options, Elements.menuItems);
+    
+    if (State.isInSubmenu || State.activeSubmenu) {
+        updateCheckboxStates(options, Elements.menuItems);
+        updateSubmenuCheckboxes(options);
+    } else {
+        updateMenuItems(options, Elements.menuItems);
+    }
+}
+
+function updateMenuItems(options, container) {
+    const existingItems = container.querySelectorAll('.menu-item');
+    
+    if (existingItems.length !== options.length) {
+        buildMenuItems(options, container);
+        return;
+    }
+    
+    options.forEach((option, index) => {
+        const item = existingItems[index];
+        if (!item) return;
+        
+        const checkbox = item.querySelector('.item-checkbox');
+        if (checkbox && option.checkbox) {
+            if (option.checked) {
+                checkbox.classList.add('checked');
+            } else {
+                checkbox.classList.remove('checked');
+            }
+        }
+        
+        const label = item.querySelector('.item-label');
+        if (label && label.textContent !== option.label) {
+            label.textContent = option.label;
+        }
+    });
+}
+
+function updateCheckboxStates(options, container) {
+    const existingItems = container.querySelectorAll('.menu-item');
+    
+    options.forEach((option, index) => {
+        const item = existingItems[index];
+        if (!item) return;
+        
+        const checkbox = item.querySelector('.item-checkbox');
+        if (checkbox && option.checkbox) {
+            if (option.checked) {
+                checkbox.classList.add('checked');
+            } else {
+                checkbox.classList.remove('checked');
+            }
+        }
+    });
+}
+
+function updateSubmenuCheckboxes(mainOptions) {
+    if (!State.activeSubmenu) return;
+    
+    const parentIndex = parseInt(State.activeSubmenu.dataset.index);
+    const parentOption = mainOptions[parentIndex];
+    
+    if (!parentOption || !parentOption.items) return;
+    
+    const submenuItems = Elements.submenuItems.querySelectorAll('.menu-item');
+    
+    parentOption.items.forEach((subOption, index) => {
+        const item = submenuItems[index];
+        if (!item) return;
+        
+        const checkbox = item.querySelector('.item-checkbox');
+        if (checkbox && subOption.checkbox) {
+            if (subOption.checked) {
+                checkbox.classList.add('checked');
+            } else {
+                checkbox.classList.remove('checked');
+            }
+        }
+    });
 }
 
 function buildMenuItems(options, container) {
@@ -106,8 +185,15 @@ function buildMenuItems(options, container) {
         item.dataset.id = option.id;
         item.dataset.index = index;
         
-        if (option.items && option.items.length > 0) {
+        const hasSubmenu = option.items && option.items.length > 0;
+        const hasCheckbox = option.checkbox === true;
+        
+        if (hasSubmenu && !hasCheckbox) {
             item.classList.add('has-submenu');
+        }
+        
+        if (hasCheckbox) {
+            item.classList.add('has-checkbox');
         }
         
         const icon = document.createElement('div');
@@ -121,19 +207,35 @@ function buildMenuItems(options, container) {
         item.appendChild(icon);
         item.appendChild(label);
         
-        if (option.items && option.items.length > 0) {
+        if (hasSubmenu && !hasCheckbox) {
             const arrow = document.createElement('div');
             arrow.className = 'submenu-arrow';
             arrow.innerHTML = '<i class="fas fa-chevron-right"></i>';
             item.appendChild(arrow);
         }
         
+        if (hasCheckbox) {
+            const checkbox = document.createElement('div');
+            checkbox.className = 'item-checkbox';
+            if (option.checked) {
+                checkbox.classList.add('checked');
+            }
+            item.appendChild(checkbox);
+        }
+        
         item.addEventListener('click', (e) => {
             e.stopPropagation();
-            handleItemClick(option, item);
+            if (hasCheckbox) {
+                handleCheckboxClick(option, item);
+            } else {
+                handleItemClick(option, item);
+            }
         });
-        item.addEventListener('mouseenter', () => handleItemHover(option, item));
-        item.addEventListener('mouseleave', () => handleItemLeave(option));
+        
+        if (!hasCheckbox) {
+            item.addEventListener('mouseenter', () => handleItemHover(option, item));
+            item.addEventListener('mouseleave', () => handleItemLeave(option));
+        }
         
         container.appendChild(item);
     });
@@ -171,6 +273,12 @@ function positionMenu(menu, x, y) {
 
 function openSubmenu(items, parentItem) {
     State.activeSubmenu = parentItem;
+    State.isInSubmenu = true;
+    
+    fetch('https://nbl-target/submenuOpen', {
+        method: 'POST',
+        body: JSON.stringify({})
+    });
     
     buildMenuItems(items, Elements.submenuItems);
     
@@ -209,6 +317,8 @@ function closeSubmenu(immediate = false) {
         State.submenuCloseTimeout = null;
     }
     
+    const wasOpen = State.activeSubmenu !== null;
+    
     if (immediate) {
         State.activeSubmenu = null;
         State.isInSubmenu = false;
@@ -216,6 +326,13 @@ function closeSubmenu(immediate = false) {
         Elements.submenu.classList.add('hidden');
         Elements.submenu.style.display = 'none';
         Elements.submenuItems.innerHTML = '';
+        
+        if (wasOpen) {
+            fetch('https://nbl-target/submenuClose', {
+                method: 'POST',
+                body: JSON.stringify({})
+            });
+        }
     }
 }
 
@@ -249,6 +366,29 @@ function handleItemClick(option, itemElement) {
             })
         });
     }, 50);
+}
+
+function handleCheckboxClick(option, itemElement) {
+    const checkbox = itemElement.querySelector('.item-checkbox');
+    const newState = !option.checked;
+    
+    option.checked = newState;
+    
+    if (newState) {
+        checkbox.classList.add('checked');
+    } else {
+        checkbox.classList.remove('checked');
+    }
+    
+    fetch('https://nbl-target/check', {
+        method: 'POST',
+        body: JSON.stringify({
+            id: option.id,
+            name: option.name,
+            label: option.label,
+            checked: newState
+        })
+    });
 }
 
 function handleItemHover(option, item) {

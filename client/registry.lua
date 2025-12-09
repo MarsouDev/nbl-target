@@ -6,12 +6,21 @@ Registry = {
     byName = {},
     byResource = {},
     nextId = 1,
-    enabled = true
+    enabled = true,
+    activeSubItems = {},
+    subItemNextId = 10000,
+    subItemIdMap = {}
 }
 
 local function GenerateId()
     local id = Registry.nextId
     Registry.nextId = Registry.nextId + 1
+    return id
+end
+
+local function GenerateSubItemId()
+    local id = Registry.subItemNextId
+    Registry.subItemNextId = Registry.subItemNextId + 1
     return id
 end
 
@@ -125,6 +134,26 @@ local function CreateHandler(ids, registryType, storage)
         return self
     end
     
+    function handler:setOnCheck(fn)
+        for _, id in ipairs(self.ids) do
+            local entry = Registry:GetById(id)
+            if entry then
+                entry.onCheck = fn
+            end
+        end
+        return self
+    end
+    
+    function handler:setChecked(checked)
+        for _, id in ipairs(self.ids) do
+            local entry = Registry:GetById(id)
+            if entry and entry.checkbox then
+                entry.checked = checked
+            end
+        end
+        return self
+    end
+    
     function handler:getId()
         if #self.ids == 1 then
             return self.ids[1]
@@ -138,6 +167,16 @@ end
 local function CreateEntry(id, baseData, options)
     options = options or {}
     
+    local hasCheckbox = options.checkbox == true
+    local hasItems = options.items and #options.items > 0
+    
+    if hasCheckbox and hasItems then
+        if Config.Debug.enabled then
+            print("^3[NBL-Target]^7 Warning: Option '" .. (options.label or "unknown") .. "' has both checkbox and items. Items will be ignored.")
+        end
+        options.items = nil
+    end
+    
     local entry = {
         id = id,
         label = options.label or "Interact",
@@ -146,6 +185,9 @@ local function CreateEntry(id, baseData, options)
         distance = options.distance or Config.Target.defaultDistance,
         canInteract = options.canInteract,
         onSelect = options.onSelect,
+        onCheck = options.onCheck,
+        checkbox = hasCheckbox,
+        checked = options.checked,
         export = options.export,
         event = options.event,
         serverEvent = options.serverEvent,
@@ -570,34 +612,106 @@ function Registry:HasAvailableOptions(entity, entityType, worldPos)
     return false
 end
 
-function Registry:FilterSubItems(items, entity, worldPos)
+function Registry:GetSubItemId(parentId, itemName, itemIndex)
+    local key = parentId .. "_" .. (itemName or "idx_" .. itemIndex)
+    
+    if not self.subItemIdMap[key] then
+        self.subItemIdMap[key] = GenerateSubItemId()
+    end
+    
+    return self.subItemIdMap[key]
+end
+
+function Registry:EvaluateChecked(checkedValue, entity, worldPos)
+    if checkedValue == nil then
+        return false
+    end
+    
+    local valueType = type(checkedValue)
+    
+    if valueType == "function" or valueType == "table" then
+        local ok, result = pcall(checkedValue)
+        if ok then
+            return result == true
+        end
+        return false
+    end
+    
+    return checkedValue == true
+end
+
+function Registry:ProcessSubItems(items, entity, worldPos, parentId)
     if not items or #items == 0 then return nil end
     
     local filtered = {}
     
-    for _, item in ipairs(items) do
+    for idx, item in ipairs(items) do
         local canShow = true
         
         if item.canInteract then
             local distance = Entity:GetDistance(entity, worldPos)
-            local success, result = pcall(item.canInteract, entity, distance, worldPos, item.name or item.id)
+            local ok, result = pcall(item.canInteract, entity, distance, worldPos, item.name)
             
-            if not success then
-                if Config.Debug.enabled then
-                    print("^1[NBL-Target]^7 SubItem canInteract error: " .. tostring(result))
-                end
+            if not ok then
                 canShow = false
             else
                 canShow = result == true
             end
         end
         
+        if item.distance then
+            local distance = Entity:GetDistance(entity, worldPos)
+            if distance > item.distance then
+                canShow = false
+            end
+        end
+        
         if canShow then
-            filtered[#filtered + 1] = {
-                id = item.id,
+            local subItemId = self:GetSubItemId(parentId, item.name, idx)
+            local hasCheckbox = item.checkbox == true
+            local hasItems = item.items and #item.items > 0
+            
+            if hasCheckbox and hasItems then
+                hasItems = false
+            end
+            
+            local checkedValue = false
+            if hasCheckbox then
+                checkedValue = self:EvaluateChecked(item.checked, entity, worldPos)
+            end
+            
+            self.activeSubItems[subItemId] = {
+                id = subItemId,
+                parentId = parentId,
                 label = item.label,
                 icon = item.icon,
                 name = item.name,
+                distance = item.distance,
+                onSelect = item.onSelect,
+                onCheck = item.onCheck,
+                checkbox = hasCheckbox,
+                checkedFn = item.checked,
+                export = item.export,
+                event = item.event,
+                serverEvent = item.serverEvent,
+                command = item.command,
+                shouldClose = item.shouldClose,
+                originalItems = hasItems and item.items or nil
+            }
+            
+            local nestedItems = nil
+            if hasItems then
+                nestedItems = self:ProcessSubItems(item.items, entity, worldPos, subItemId)
+            end
+            
+            filtered[#filtered + 1] = {
+                id = subItemId,
+                label = item.label,
+                icon = item.icon,
+                name = item.name,
+                checkbox = hasCheckbox,
+                checked = checkedValue,
+                items = nestedItems,
                 shouldClose = item.shouldClose
             }
         end
@@ -613,14 +727,23 @@ function Registry:GetAvailableOptions(entity, entityType, worldPos)
     
     for _, reg in ipairs(registrations) do
         if self:CanInteract(reg, entity, worldPos, nil) then
-            local filteredItems = self:FilterSubItems(reg.items, entity, worldPos)
+            local hasCheckbox = reg.checkbox == true
+            local processedItems = nil
+            
+            if not hasCheckbox and reg.items then
+                processedItems = self:ProcessSubItems(reg.items, entity, worldPos, reg.id)
+            end
+            
+            local checkedValue = self:EvaluateChecked(reg.checked, entity, worldPos)
             
             available[#available + 1] = {
                 id = reg.id,
                 label = reg.label,
                 icon = reg.icon,
                 name = reg.name,
-                items = filteredItems,
+                checkbox = hasCheckbox,
+                checked = checkedValue,
+                items = processedItems,
                 shouldClose = reg.shouldClose
             }
         end
@@ -630,6 +753,8 @@ function Registry:GetAvailableOptions(entity, entityType, worldPos)
 end
 
 function Registry:ExecuteAction(registration, entity, worldPos)
+    if not registration then return end
+    
     if registration.export then
         local dotIndex = string.find(registration.export, "%.")
         if dotIndex then
@@ -664,10 +789,38 @@ function Registry:OnSelect(optionId, entity, worldPos)
         or self.localEntities[optionId]
         or self.models[optionId]
         or self.globalTypes[optionId]
+        or self.activeSubItems[optionId]
     
     if registration then
         self:ExecuteAction(registration, entity, worldPos)
     end
+end
+
+function Registry:OnCheck(optionId, entity, worldPos, newState)
+    local registration = self.entities[optionId]
+        or self.localEntities[optionId]
+        or self.models[optionId]
+        or self.globalTypes[optionId]
+        or self.activeSubItems[optionId]
+    
+    if not registration then return end
+    
+    if registration.onCheck then
+        local success, err = pcall(registration.onCheck, newState, entity, worldPos, registration)
+        if not success and Config.Debug.enabled then
+            print("^1[NBL-Target]^7 onCheck error: " .. tostring(err))
+        end
+    elseif registration.event then
+        TriggerEvent(registration.event, newState, entity, worldPos, registration)
+    elseif registration.serverEvent then
+        TriggerServerEvent(registration.serverEvent, newState, entity, worldPos, registration)
+    end
+end
+
+function Registry:ClearActiveSubItems()
+    self.activeSubItems = {}
+    self.subItemIdMap = {}
+    self.subItemNextId = 10000
 end
 
 function Registry:GetById(id)

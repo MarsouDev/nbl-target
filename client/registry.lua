@@ -1,0 +1,387 @@
+Registry = {
+    entities = {},
+    localEntities = {},
+    models = {},
+    globalTypes = {},
+    byName = {},
+    nextId = 1,
+    enabled = true
+}
+
+local function GenerateId()
+    local id = Registry.nextId
+    Registry.nextId = Registry.nextId + 1
+    return id
+end
+
+local function CreateEntry(id, baseData, options)
+    options = options or {}
+    
+    local entry = {
+        id = id,
+        label = options.label or "Interact",
+        name = options.name,
+        icon = options.icon or "fas fa-hand-pointer",
+        distance = options.distance or Config.Target.defaultDistance,
+        canInteract = options.canInteract,
+        onSelect = options.onSelect,
+        export = options.export,
+        event = options.event,
+        serverEvent = options.serverEvent,
+        command = options.command,
+        items = options.items,
+        enabled = options.enabled ~= false
+    }
+    
+    for k, v in pairs(baseData) do
+        entry[k] = v
+    end
+    
+    if entry.name then
+        Registry.byName[entry.name] = entry
+    end
+    
+    return entry
+end
+
+local function RemoveEntry(storage, id)
+    if storage[id] then
+        local entry = storage[id]
+        if entry.name then
+            Registry.byName[entry.name] = nil
+        end
+        storage[id] = nil
+        return true
+    end
+    return false
+end
+
+function Registry:Enable()
+    self.enabled = true
+end
+
+function Registry:Disable()
+    self.enabled = false
+end
+
+function Registry:IsEnabled()
+    return self.enabled
+end
+
+function Registry:AddEntity(entity, options)
+    if not entity or entity == 0 then
+        if Config.Debug.enabled then
+            print("^1[NBL-Target]^7 AddEntity: Invalid entity")
+        end
+        return nil
+    end
+    
+    local id = GenerateId()
+    local entry = CreateEntry(id, {
+        entity = entity,
+        registryType = "entity"
+    }, options)
+    
+    self.entities[id] = entry
+    return id
+end
+
+function Registry:AddLocalEntity(entity, options)
+    if not entity or entity == 0 then
+        if Config.Debug.enabled then
+            print("^1[NBL-Target]^7 AddLocalEntity: Invalid entity")
+        end
+        return nil
+    end
+    
+    local id = GenerateId()
+    local entry = CreateEntry(id, {
+        entity = entity,
+        registryType = "localEntity"
+    }, options)
+    
+    self.localEntities[id] = entry
+    return id
+end
+
+function Registry:AddModel(model, options)
+    if not model then
+        if Config.Debug.enabled then
+            print("^1[NBL-Target]^7 AddModel: Invalid model")
+        end
+        return nil
+    end
+    
+    if type(model) == "string" then
+        model = GetHashKey(model)
+    end
+    
+    local id = GenerateId()
+    local entry = CreateEntry(id, {
+        model = model,
+        registryType = "model"
+    }, options)
+    
+    self.models[id] = entry
+    return id
+end
+
+function Registry:AddGlobalType(entityType, options)
+    local id = GenerateId()
+    local entry = CreateEntry(id, {
+        entityType = entityType,
+        registryType = "global"
+    }, options)
+    
+    self.globalTypes[id] = entry
+    return id
+end
+
+function Registry:AddGlobalVehicle(options)
+    return self:AddGlobalType("vehicle", options)
+end
+
+function Registry:AddGlobalPed(options)
+    return self:AddGlobalType("ped", options)
+end
+
+function Registry:AddGlobalPlayer(options)
+    return self:AddGlobalType("player", options)
+end
+
+function Registry:AddGlobalObject(options)
+    return self:AddGlobalType("object", options)
+end
+
+function Registry:AddGlobalOption(entityType, options)
+    return self:AddGlobalType(entityType, options)
+end
+
+function Registry:RemoveEntity(id)
+    return RemoveEntry(self.entities, id)
+end
+
+function Registry:RemoveLocalEntity(id)
+    return RemoveEntry(self.localEntities, id)
+end
+
+function Registry:RemoveModel(id)
+    return RemoveEntry(self.models, id)
+end
+
+function Registry:RemoveGlobalType(id)
+    return RemoveEntry(self.globalTypes, id)
+end
+
+function Registry:RemoveGlobalOption(id)
+    return self:RemoveGlobalType(id)
+end
+
+function Registry:RemoveGlobalVehicle(id)
+    return self:RemoveGlobalType(id)
+end
+
+function Registry:RemoveGlobalPed(id)
+    return self:RemoveGlobalType(id)
+end
+
+function Registry:RemoveGlobalPlayer(id)
+    return self:RemoveGlobalType(id)
+end
+
+function Registry:RemoveGlobalObject(id)
+    return self:RemoveGlobalType(id)
+end
+
+function Registry:RemoveByName(name)
+    local entry = self.byName[name]
+    if not entry then return false end
+    
+    local storage
+    if entry.registryType == "entity" then
+        storage = self.entities
+    elseif entry.registryType == "localEntity" then
+        storage = self.localEntities
+    elseif entry.registryType == "model" then
+        storage = self.models
+    elseif entry.registryType == "global" then
+        storage = self.globalTypes
+    end
+    
+    if storage then
+        return RemoveEntry(storage, entry.id)
+    end
+    
+    return false
+end
+
+function Registry:GetEntityRegistrations(entity)
+    local results = {}
+    
+    for _, entry in pairs(self.entities) do
+        if entry.entity == entity and entry.enabled then
+            results[#results + 1] = entry
+        end
+    end
+    
+    for _, entry in pairs(self.localEntities) do
+        if entry.entity == entity and entry.enabled then
+            results[#results + 1] = entry
+        end
+    end
+    
+    return results
+end
+
+function Registry:GetModelRegistrations(entity)
+    if not entity or entity == 0 then return {} end
+    
+    local entityModel = GetEntityModel(entity)
+    if not entityModel then return {} end
+    
+    local results = {}
+    
+    for _, entry in pairs(self.models) do
+        if entry.model == entityModel and entry.enabled then
+            results[#results + 1] = entry
+        end
+    end
+    
+    return results
+end
+
+function Registry:GetGlobalTypeRegistrations(entityType)
+    local results = {}
+    
+    for _, entry in pairs(self.globalTypes) do
+        if entry.entityType == entityType and entry.enabled then
+            results[#results + 1] = entry
+        end
+    end
+    
+    return results
+end
+
+function Registry:GetAllRegistrations(entity, entityType)
+    local results = {}
+    
+    for _, reg in ipairs(self:GetEntityRegistrations(entity)) do
+        results[#results + 1] = reg
+    end
+    
+    for _, reg in ipairs(self:GetModelRegistrations(entity)) do
+        results[#results + 1] = reg
+    end
+    
+    for _, reg in ipairs(self:GetGlobalTypeRegistrations(entityType)) do
+        results[#results + 1] = reg
+    end
+    
+    return results
+end
+
+function Registry:CanInteract(registration, entity, worldPos, bone)
+    if not registration.enabled then return false end
+    
+    local distance = Entity:GetDistance(entity, worldPos)
+    if distance > registration.distance then
+        return false
+    end
+    
+    if registration.canInteract then
+        local success, result = pcall(
+            registration.canInteract,
+            entity, distance, worldPos, registration.name, bone
+        )
+        
+        if not success then
+            if Config.Debug.enabled then
+                print("^1[NBL-Target]^7 canInteract error: " .. tostring(result))
+            end
+            return false
+        end
+        
+        return result == true
+    end
+    
+    return true
+end
+
+function Registry:HasAvailableOptions(entity, entityType, worldPos)
+    local registrations = self:GetAllRegistrations(entity, entityType)
+    
+    for _, reg in ipairs(registrations) do
+        if self:CanInteract(reg, entity, worldPos, nil) then
+            return true
+        end
+    end
+    
+    return false
+end
+
+function Registry:GetAvailableOptions(entity, entityType, worldPos)
+    local registrations = self:GetAllRegistrations(entity, entityType)
+    local available = {}
+    
+    for _, reg in ipairs(registrations) do
+        if self:CanInteract(reg, entity, worldPos, nil) then
+            available[#available + 1] = {
+                id = reg.id,
+                label = reg.label,
+                icon = reg.icon,
+                name = reg.name,
+                items = reg.items
+            }
+        end
+    end
+    
+    return available
+end
+
+function Registry:ExecuteAction(registration, entity, worldPos)
+    if registration.export then
+        local dotIndex = string.find(registration.export, "%.")
+        if dotIndex then
+            local resourceName = string.sub(registration.export, 1, dotIndex - 1)
+            local exportName = string.sub(registration.export, dotIndex + 1)
+            
+            if exports[resourceName] and exports[resourceName][exportName] then
+                local success, err = pcall(function()
+                    exports[resourceName][exportName](entity, worldPos, registration)
+                end)
+                if not success and Config.Debug.enabled then
+                    print("^1[NBL-Target]^7 Export error: " .. tostring(err))
+                end
+            end
+        end
+    elseif registration.event then
+        TriggerEvent(registration.event, entity, worldPos, registration)
+    elseif registration.serverEvent then
+        TriggerServerEvent(registration.serverEvent, entity, worldPos, registration)
+    elseif registration.command then
+        ExecuteCommand(registration.command)
+    elseif registration.onSelect then
+        local success, err = pcall(registration.onSelect, entity, worldPos, registration)
+        if not success and Config.Debug.enabled then
+            print("^1[NBL-Target]^7 onSelect error: " .. tostring(err))
+        end
+    end
+end
+
+function Registry:OnSelect(optionId, entity, worldPos)
+    local registration = self.entities[optionId]
+        or self.localEntities[optionId]
+        or self.models[optionId]
+        or self.globalTypes[optionId]
+    
+    if registration then
+        self:ExecuteAction(registration, entity, worldPos)
+    end
+end
+
+function Registry:GetById(id)
+    return self.entities[id]
+        or self.localEntities[id]
+        or self.models[id]
+        or self.globalTypes[id]
+end

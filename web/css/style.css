@@ -1,0 +1,284 @@
+:root {
+    --bg-primary: rgba(15, 15, 20, 0.75);
+    --bg-secondary: rgba(25, 25, 35, 0.95);
+    --bg-hover: rgba(255, 255, 255, 0.08);
+    --bg-active: rgba(255, 200, 50, 0.15);
+    --text-primary: rgba(255, 255, 255, 0.95);
+    --text-secondary: rgba(255, 255, 255, 0.6);
+    --text-muted: rgba(255, 255, 255, 0.4);
+    --accent: #ffc832;
+    --accent-hover: #ffdb6d;
+    --accent-glow: rgba(255, 200, 50, 0.3);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-hover: rgba(255, 255, 255, 0.15);
+    --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
+    --menu-width: 220px;
+    --menu-padding: 6px;
+    --item-padding: 10px 14px;
+    --item-gap: 2px;
+    --border-radius: 10px;
+    --border-radius-sm: 6px;
+    --transition-fast: 0.12s ease;
+    --transition-normal: 0.2s ease;
+    --transition-slow: 0.3s ease;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+*::before,
+*::after {
+    background: transparent;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    background: transparent !important;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    color: var(--text-primary);
+    background: transparent;
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+}
+
+.context-menu {
+    position: fixed;
+    width: var(--menu-width);
+    background: var(--bg-primary);
+    backdrop-filter: blur(8px) saturate(180%);
+    -webkit-backdrop-filter: blur(8px) saturate(180%);
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-lg);
+    padding: var(--menu-padding);
+    z-index: 1000;
+    opacity: 0;
+    transform: scale(0.95) translateY(-5px);
+    transform-origin: top left;
+    transition: 
+        opacity var(--transition-normal),
+        transform var(--transition-normal);
+    mix-blend-mode: normal;
+}
+
+.context-menu.visible {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+}
+
+.context-menu.hidden {
+    pointer-events: none;
+}
+
+.context-menu.submenu {
+    transform-origin: top left;
+}
+
+.context-menu.submenu.left {
+    transform-origin: top right;
+}
+
+.menu-items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--item-gap);
+    max-height: 400px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.menu-items::-webkit-scrollbar {
+    width: 4px;
+}
+
+.menu-items::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.menu-items::-webkit-scrollbar-thumb {
+    background: var(--border-hover);
+    border-radius: 2px;
+}
+
+.menu-items::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: var(--item-padding);
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    transition: 
+        background var(--transition-fast),
+        transform var(--transition-fast);
+    position: relative;
+}
+
+.menu-item:hover {
+    background: var(--bg-hover);
+}
+
+.menu-item:active {
+    transform: scale(0.98);
+}
+
+.menu-item.has-submenu:hover {
+    background: var(--bg-active);
+}
+
+.menu-item .item-icon {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.menu-item .item-label {
+    flex: 1;
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.menu-item .submenu-arrow {
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 10px;
+    transition: 
+        color var(--transition-fast),
+        transform var(--transition-fast);
+}
+
+.menu-item:hover .submenu-arrow {
+    color: var(--accent);
+    transform: translateX(2px);
+}
+
+.menu-separator {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 8px;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.95) translateY(-5px);
+    }
+}
+
+.context-menu.animate-in {
+    animation: fadeIn var(--transition-normal) forwards;
+}
+
+.context-menu.animate-out {
+    animation: fadeOut var(--transition-fast) forwards;
+}
+
+.menu-item {
+    opacity: 0;
+    transform: translateX(-8px);
+}
+
+.context-menu.visible .menu-item {
+    animation: itemSlideIn var(--transition-normal) forwards;
+}
+
+@keyframes itemSlideIn {
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.menu-item:nth-child(1) { animation-delay: 0.02s; }
+.menu-item:nth-child(2) { animation-delay: 0.04s; }
+.menu-item:nth-child(3) { animation-delay: 0.06s; }
+.menu-item:nth-child(4) { animation-delay: 0.08s; }
+.menu-item:nth-child(5) { animation-delay: 0.10s; }
+.menu-item:nth-child(6) { animation-delay: 0.12s; }
+.menu-item:nth-child(7) { animation-delay: 0.14s; }
+.menu-item:nth-child(8) { animation-delay: 0.16s; }
+.menu-item:nth-child(9) { animation-delay: 0.18s; }
+.menu-item:nth-child(10) { animation-delay: 0.20s; }
+
+.context-menu::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border-radius: calc(var(--border-radius) + 2px);
+    background: linear-gradient(
+        135deg,
+        var(--accent-glow) 0%,
+        transparent 50%,
+        transparent 100%
+    );
+    z-index: -1;
+    opacity: 0;
+    transition: opacity var(--transition-normal);
+    pointer-events: none;
+}
+
+.context-menu:hover::before {
+    opacity: 1;
+}
+
+.context-menu[data-scale="0.8"] {
+    transform: scale(0.8);
+}
+
+.context-menu[data-scale="0.9"] {
+    transform: scale(0.9);
+}
+
+.context-menu[data-scale="1.1"] {
+    transform: scale(1.1);
+}
+
+.context-menu[data-scale="1.2"] {
+    transform: scale(1.2);
+}

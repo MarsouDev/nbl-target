@@ -1,97 +1,139 @@
+--[[
+    NBL Context Menu - Configuration
+    
+    All colors use RGBA format: {r, g, b, a}
+    r, g, b = 0-255
+    a = 0-255 (transparency)
+]]
+
 Config = {}
 
--- Configuration du feedback visuel (outline et marker)
-Config.VisualFeedback = {
-    -- Activer ou désactiver le feedback visuel au survol
+-- ============================================================================
+-- CONTROLS
+-- ============================================================================
+Config.Controls = {
+    -- Key to activate targeting mode (hold to use)
+    -- Common keys: 'LMENU' (Left Alt), 'LCONTROL' (Left Ctrl), 'LSHIFT' (Left Shift)
+    activationKey = 'LMENU',
+    
+    -- Mouse button to select/click (24 = Left Click, 25 = Right Click)
+    selectKey = 24
+}
+
+-- ============================================================================
+-- TARGETING
+-- ============================================================================
+Config.Target = {
+    -- Maximum distance for raycast detection (in meters)
+    maxDistance = 10.0,
+    
+    -- Raycast flags (-1 = all entity types)
+    -- 1 = World, 2 = Vehicles, 4 = Peds, 8 = Objects, 16 = Water, 32 = Foliage
+    raycastFlags = -1,
+    
+    -- Allow targeting yourself
+    allowSelfTarget = false,
+    
+    -- Default interaction distance for options
+    defaultDistance = 3.0
+}
+
+-- ============================================================================
+-- OUTLINE (Entity highlight border)
+-- ============================================================================
+Config.Outline = {
+    -- Enable/disable outline effect
     enabled = true,
     
-    -- Utiliser l'outline (contour coloré autour de l'entité)
-    useOutline = true,
+    -- Outline color (RGBA)
+    color = {r = 255, g = 255, b = 0, a = 255},
     
-    -- Afficher l'outline sur toutes les entités (true) ou uniquement sur les targetables (false)
-    showOutlineOnAll = false,
-    
-    -- Utiliser le marker (marqueur 3D au-dessus de l'entité)
-    useMarker = true,
-    
-    -- Couleur de l'outline (RGBA)
-    outlineColor = {r = 255, g = 255, b = 0, a = 255},
-    
-    -- Type de marqueur (1 = cylindre, 2 = flèche, etc.)
-    markerType = 1,
-    
-    -- Couleur du marqueur (RGBA)
-    markerColor = {r = 255, g = 255, b = 0, a = 200},
-    
-    -- Taille du marqueur
-    markerScale = 0.3,
-    
-    -- Hauteur du marqueur au-dessus de l'entité
-    markerHeight = 1.5,
-    
-    -- Distance maximale pour afficher le feedback visuel
-    maxDistance = 50.0,
-    
-    -- Types d'entités autorisés à avoir un outline (évite les crashes sur les peds)
-    outlineAllowedTypes = {
-        vehicle = true,  -- Les véhicules peuvent avoir un outline
-        object = true,   -- Les objets peuvent avoir un outline
-        ped = false      -- Les peds ne peuvent pas avoir d'outline (crash possible)
+    -- Entity types that can have outline
+    -- Note: Peds are disabled by default to prevent crashes
+    allowedTypes = {
+        vehicle = true,
+        object = true,
+        ped = false
     }
 }
 
--- Configuration du système de raycast
-Config.Target = {
-    -- Distance maximale pour le raycast (en mètres)
-    maxDistance = 10000.0,
+-- ============================================================================
+-- MARKER (3D marker above entity)
+-- ============================================================================
+Config.Marker = {
+    -- Enable/disable 3D marker
+    enabled = true,
     
-    -- Flags pour le raycast (-1 = tous les types d'entités)
-    raycastFlags = -1
+    -- Marker type (see https://docs.fivem.net/docs/game-references/markers/)
+    -- 1 = Cylinder, 2 = Arrow down, 25 = Horizontal circle, 27 = Arrow
+    type = 2,
+    
+    -- Marker color (RGBA)
+    color = {r = 255, g = 255, b = 0, a = 200},
+    
+    -- Marker scale
+    scale = 0.3,
+    
+    -- Height above entity (in meters)
+    height = 1.0,
+    
+    -- Rotate marker (for visual effect)
+    rotate = true,
+    
+    -- Bobbing animation (up and down)
+    bob = true
 }
 
--- Configuration des contrôles
-Config.Controls = {
-    -- Touche pour activer le mode target (LMENU = Alt gauche)
-    activationKey = 'LMENU',
+-- ============================================================================
+-- MENU (NUI Context Menu)
+-- ============================================================================
+Config.Menu = {
+    -- Menu scale (1.0 = 100%)
+    scale = 1.0,
     
-    -- Contrôle pour le clic (24 = clic gauche)
-    clickKey = 24
+    -- Maximum options visible without scrolling
+    maxVisibleOptions = 8,
+    
+    -- Delay before showing submenu (in milliseconds)
+    subMenuDelay = 150,
+    
+    -- Animation duration (in milliseconds)
+    animationDuration = 150,
+    
+    -- Close menu when releasing activation key
+    closeOnKeyRelease = true
 }
 
--- Liste des contrôles à désactiver pendant le mode target
-Config.DisableControls = {
+-- ============================================================================
+-- DEBUG
+-- ============================================================================
+Config.Debug = {
+    -- Enable debug prints in console
+    enabled = false
+}
+
+-- ============================================================================
+-- DISABLED CONTROLS (while targeting mode is active)
+-- ============================================================================
+Config.DisabledControls = {
     1,    -- Look Left/Right
     2,    -- Look Up/Down
-    24,   -- Attack (clic gauche)
+    24,   -- Attack
     25,   -- Aim
-    68,   -- Vehicle Mouse Control Override
-    69,   -- Vehicle Mouse Control Override
-    70,   -- Vehicle Mouse Control Override
-    91,   -- Vehicle Mouse Control Override
-    92,   -- Vehicle Mouse Control Override
-    330,  -- Vehicle Mouse Control Override
-    331,  -- Vehicle Mouse Control Override
-    347,  -- Vehicle Mouse Control Override
-    257   -- Attack 2
-}
-
--- Configuration du système de registre
-Config.Registry = {
-    -- Autoriser de se viser soi-même (false = comme OX-Target)
-    allowSelfTargeting = false,
-    
-    -- Distance par défaut pour les interactions
-    defaultDistance = 5.0
-}
-
--- Configuration du curseur
-Config.Cursor = {
-    -- Curseur normal (par défaut)
-    normal = 0,
-    
-    -- Curseur quand on survole une entité targetable
-    targetable = 1,
-    
-    -- Curseur quand on survole une entité non targetable
-    notTargetable = 0
+    37,   -- Select Weapon
+    68,   -- Vehicle Aim
+    69,   -- Vehicle Attack
+    70,   -- Vehicle Attack 2
+    91,   -- Vehicle Passenger Aim
+    92,   -- Vehicle Passenger Attack
+    106,  -- Vehicle Mouse Control Override
+    114,  -- Fly Attack
+    140,  -- Melee Attack Light
+    141,  -- Melee Attack Heavy
+    142,  -- Melee Attack Alternate
+    257,  -- Attack 2
+    263,  -- Melee Attack 1
+    264,  -- Melee Attack 2
+    330,  -- Melee Attack
+    331   -- Melee Block
 }

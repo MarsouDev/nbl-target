@@ -2,11 +2,29 @@ fx_version 'cerulean'
 game 'gta5'
 lua54 'yes'
 
+name 'nbl-contextmenu'
+description 'Modern context menu / targeting system for FiveM'
+author 'Nebula'
+version '2.0.0'
+
 shared_scripts {
-    'config/config.lua',
+    'config/config.lua'
 }
 
 client_scripts {
-    'client/target.lua',
-    'client/client.lua',
+    'client/modules/raycast.lua',
+    'client/modules/entity.lua',
+    'client/modules/visual.lua',
+    'client/registry.lua',
+    'client/nui.lua',
+    'client/main.lua',
+    'client/test.lua'
+}
+
+ui_page 'web/index.html'
+
+files {
+    'web/index.html',
+    'web/css/style.css',
+    'web/js/app.js'
 }

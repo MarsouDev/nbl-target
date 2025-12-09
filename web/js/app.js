@@ -228,7 +228,7 @@ function scheduleSubmenuClose() {
         if (!State.isInSubmenu) {
             closeSubmenu(true);
         }
-    }, 300);
+    }, 150);
 }
 
 function handleItemClick(option, itemElement) {

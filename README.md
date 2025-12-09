@@ -1,402 +1,460 @@
 # NBL Context Menu
 
-Un système de ciblage et de menu contextuel avancé pour FiveM, compatible avec OX-Target et offrant des fonctionnalités supplémentaires.
+A modern, feature-rich context menu and targeting system for FiveM. Built with performance and flexibility in mind.
 
-## 📋 Informations
+## 📋 Table of Contents
 
-- **Langage** : Lua 5.4
-- **Version FiveM** : Cerulean
-- **Performance** : 0ms quand inactif (thread en veille), optimisé pour une utilisation minimale des ressources
+- [Features](#-features)
+- [Installation](#-installation)
+- [File Structure](#-file-structure)
+- [Configuration](#-configuration)
+- [API Reference](#-api-reference)
+- [Usage Examples](#-usage-examples)
+- [Advanced Features](#-advanced-features)
+- [Performance](#-performance)
+- [Troubleshooting](#-troubleshooting)
 
-## ✨ Fonctionnalités
+## ✨ Features
 
-- 🎯 **Système de ciblage avancé** : Détection précise des entités (véhicules, peds, objets, sol, ciel)
-- 🖱️ **Feedback visuel** : Outline et marker au survol des entités
-- 🎨 **Curseur dynamique** : Changement de curseur selon l'état de l'entité
-- 📦 **Système de registre** : Enregistrement d'entités spécifiques ou de types globaux
-- 🔧 **Actions multiples** : Support pour exports, events, serverEvents, commands
-- ⚡ **Optimisé** : Thread en veille quand inactif (0ms de CPU)
-- 🛡️ **Gestion d'erreurs** : Protection complète contre les crashes
+- 🎯 **Advanced Targeting System**: Precise entity detection (vehicles, peds, objects, ground, sky, self)
+- 🖱️ **Visual Feedback**: Outline and 3D markers on hover
+- 🎨 **Dynamic Cursor**: Cursor changes based on entity state
+- 📦 **Registry System**: Register specific entities or global types
+- 🎨 **Modern NUI Menu**: Beautiful dark-themed context menu with animations
+- 📋 **Sub-menus**: Nested options with hover support
+- ⚡ **Real-time Updates**: Auto-refresh options based on `canInteract` conditions
+- 🔧 **Multiple Actions**: Support for exports, events, serverEvents, commands
+- 🛡️ **Error Handling**: Complete protection against crashes
+- ⚡ **Optimized**: 0ms CPU when inactive, efficient resource usage
+- 🔄 **Auto-cleanup**: Automatic removal of options when resources stop
 
 ## 🚀 Installation
 
-1. Placez le dossier `nbl-contextmenu` dans votre dossier `resources`
-2. Ajoutez `ensure nbl-contextmenu` dans votre `server.cfg`
-3. Redémarrez votre serveur
+1. Place the `nbl-contextmenu` folder in your `resources` directory
+2. Add `ensure nbl-contextmenu` to your `server.cfg`
+3. Restart your server
+
+## 📁 File Structure
+
+```
+nbl-contextmenu/
+├── config/
+│   └── config.lua              # Main configuration file
+├── client/
+│   ├── modules/
+│   │   ├── raycast.lua         # Raycast system for entity detection
+│   │   ├── entity.lua           # Entity utilities and type detection
+│   │   └── visual.lua           # Visual feedback (outline, markers)
+│   ├── registry.lua            # Option registration and management
+│   ├── nui.lua                  # NUI bridge (Lua ↔ JavaScript)
+│   ├── main.lua                 # Main client script (activation, input)
+│   └── test.lua                 # Test commands (optional, for development)
+├── web/
+│   ├── index.html              # NUI HTML structure
+│   ├── css/
+│   │   └── style.css           # Menu styling (dark theme, animations)
+│   └── js/
+│       └── app.js               # Menu logic (open/close, sub-menus)
+├── fxmanifest.lua              # Resource manifest
+└── README.md                    # This file
+```
+
+### Module Descriptions
+
+- **raycast.lua**: Handles screen-to-world raycasting with camera caching for optimization
+- **entity.lua**: Provides entity validation, type detection, and utility functions
+- **visual.lua**: Manages outline and marker rendering with automatic cleanup
+- **registry.lua**: Core registration system with resource tracking and cleanup
+- **nui.lua**: Bridge between Lua and NUI, handles menu state and refresh
+- **main.lua**: Main loop, activation/deactivation, input handling
 
 ## ⚙️ Configuration
 
-Toute la configuration se trouve dans `config/config.lua`. Voici les principales options :
+All configuration is in `config/config.lua`. Here are the main sections:
 
-### Feedback visuel
+### Controls
+
 ```lua
-Config.VisualFeedback = {
-    enabled = true,              -- Activer/désactiver le feedback visuel
-    useOutline = true,           -- Utiliser l'outline
-    useMarker = true,            -- Utiliser le marker
-    outlineColor = {r = 255, g = 255, b = 0, a = 255},  -- Couleur outline
-    markerType = 1,              -- Type de marqueur
-    markerColor = {r = 255, g = 255, b = 0, a = 200},   -- Couleur marker
-    maxDistance = 50.0,          -- Distance maximale
-    outlineAllowedTypes = {
-        vehicle = true,          -- Outline sur véhicules
-        object = true,           -- Outline sur objets
-        ped = false              -- Outline sur peds (désactivé pour éviter crashes)
+Config.Controls = {
+    activationKey = 'LMENU',  -- Key to activate (Left Alt)
+    selectKey = 24            -- Mouse button to select (24 = Left Click)
+}
+```
+
+### Targeting
+
+```lua
+Config.Target = {
+    maxDistance = 10.0,           -- Maximum raycast distance
+    raycastFlags = -1,            -- Raycast flags (-1 = all types)
+    allowSelfTarget = true,       -- Allow targeting yourself
+    defaultDistance = 3.0         -- Default interaction distance
+}
+```
+
+### Outline (Entity Highlight)
+
+```lua
+Config.Outline = {
+    enabled = true,
+    color = {r = 255, g = 255, b = 0, a = 255},  -- Yellow outline
+    allowedTypes = {
+        vehicle = true,
+        object = true,
+        ped = true,
+        player = true,
+        self = true
     }
 }
 ```
 
-### Curseur
+### Marker (3D Marker Above Entity)
+
 ```lua
-Config.Cursor = {
-    normal = 0,                  -- Curseur normal
-    targetable = 1,              -- Curseur quand entité targetable
-    notTargetable = 0            -- Curseur quand entité non targetable
+Config.Marker = {
+    enabled = true,
+    type = 2,                    -- Marker type (2 = Arrow down)
+    color = {r = 255, g = 255, b = 0, a = 200},
+    scale = 0.3,
+    height = 1.0,                -- Height above entity
+    rotate = true,               -- Rotate animation
+    bob = true                   -- Bobbing animation
 }
 ```
 
-### Contrôles
+### Menu (NUI Context Menu)
+
 ```lua
-Config.Controls = {
-    activationKey = 'LMENU',     -- Touche pour activer (Alt gauche)
-    clickKey = 24                -- Contrôle pour le clic (clic gauche)
+Config.Menu = {
+    scale = 1.0,                 -- Menu scale
+    maxVisibleOptions = 8,       -- Max options before scroll
+    subMenuDelay = 150,          -- Delay before showing submenu
+    animationDuration = 150,     -- Animation duration
+    refreshInterval = 500        -- Auto-refresh interval (ms, 0 = disabled)
 }
 ```
 
-## 📖 Utilisation
+## 📖 API Reference
 
-### Activation
+### Exports
 
-Le système s'active en maintenant la touche **Alt** (par défaut). Relâchez pour désactiver.
+#### Entity Registration
 
-### Enregistrer une entité spécifique
+| Export | Description | Parameters | Returns |
+|--------|-------------|------------|---------|
+| `addEntity(entity, options)` | Register specific entity | `entity` (number), `options` (table) | `id` (number) |
+| `addLocalEntity(entity, options)` | Register local entity | `entity` (number), `options` (table) | `id` (number) |
+| `removeEntity(id)` | Remove entity registration | `id` (number) | `boolean` |
+| `removeLocalEntity(id)` | Remove local entity | `id` (number) | `boolean` |
+
+#### Model Registration
+
+| Export | Description | Parameters | Returns |
+|--------|-------------|------------|---------|
+| `addModel(model, options)` | Register by model hash | `model` (number/string), `options` (table) | `id` (number) |
+| `removeModel(id)` | Remove model registration | `id` (number) | `boolean` |
+
+#### Global Type Registration
+
+| Export | Description | Parameters | Returns |
+|--------|-------------|------------|---------|
+| `addGlobalVehicle(options)` | All vehicles | `options` (table) | `id` (number) |
+| `addGlobalPed(options)` | All peds (NPCs) | `options` (table) | `id` (number) |
+| `addGlobalPlayer(options)` | All players | `options` (table) | `id` (number) |
+| `addGlobalObject(options)` | All objects | `options` (table) | `id` (number) |
+| `addGlobalSelf(options)` | Self (player) | `options` (table) | `id` (number) |
+| `addGlobalOption(entityType, options)` | Custom entity type | `entityType` (string), `options` (table) | `id` (number) |
+| `removeGlobalVehicle(id)` | Remove global vehicle | `id` (number) | `boolean` |
+| `removeGlobalPed(id)` | Remove global ped | `id` (number) | `boolean` |
+| `removeGlobalPlayer(id)` | Remove global player | `id` (number) | `boolean` |
+| `removeGlobalObject(id)` | Remove global object | `id` (number) | `boolean` |
+| `removeGlobalOption(id)` | Remove global option | `id` (number) | `boolean` |
+
+#### Utility Exports
+
+| Export | Description | Parameters | Returns |
+|--------|-------------|------------|---------|
+| `removeByName(name)` | Remove by option name | `name` (string) | `boolean` |
+| `removeByResource(resourceName)` | Remove all from resource | `resourceName` (string) | `count` (number) |
+| `isActive()` | Check if targeting is active | - | `boolean` |
+| `isMenuOpen()` | Check if menu is open | - | `boolean` |
+| `getCurrentTarget()` | Get current hovered entity | - | `table` or `nil` |
+| `getSelectedEntity()` | Get entity with open menu | - | `number` or `nil` |
+| `closeMenu()` | Close the menu | - | - |
+| `deactivate()` | Deactivate targeting mode | - | - |
+| `enable()` | Enable registry | - | - |
+| `disable()` | Disable registry | - | - |
+| `isEnabled()` | Check if registry is enabled | - | `boolean` |
+| `refreshOptions()` | Manually refresh menu options | - | `boolean` |
+
+### Option Parameters
+
+| Parameter | Type | Description | Required | Default |
+|-----------|------|-------------|----------|---------|
+| `label` | string | Display text | Yes | - |
+| `name` | string | Unique identifier | No | - |
+| `icon` | string | Font Awesome icon class | No | `"fas fa-hand-pointer"` |
+| `distance` | number | Max interaction distance | No | `3.0` |
+| `canInteract` | function | Condition to show option | No | Always true |
+| `onSelect` | function | Callback on selection | No | - |
+| `export` | string | Export to call (`"resource.export"`) | No | - |
+| `event` | string | Client event to trigger | No | - |
+| `serverEvent` | string | Server event to trigger | No | - |
+| `command` | string | Command to execute | No | - |
+| `items` | table | Sub-menu items | No | - |
+| `shouldClose` | boolean | Close menu and deactivate target | No | `false` |
+| `enabled` | boolean | Enable/disable option | No | `true` |
+
+### Entity Types
+
+- `vehicle` - All vehicles
+- `ped` - All NPCs
+- `player` - All players
+- `object` - All objects
+- `self` - The player themselves
+- `ground` - Ground/terrain
+- `sky` - Sky/empty space
+
+## 💡 Usage Examples
+
+### Basic Entity Registration
 
 ```lua
 local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
-local targetId = exports['nbl-contextmenu']:addEntity(vehicle, {
-    label = "Ouvrir le coffre",
+local id = exports['nbl-contextmenu']:addEntity(vehicle, {
+    label = "Open Trunk",
+    icon = "fas fa-box",
     name = "open_trunk",
-    icon = "fa-solid fa-box",
     distance = 3.0,
-    canInteract = function(entity, distance, coords, name, bone)
-        return not IsVehicleLocked(entity)
-    end,
     onSelect = function(entity, coords, registration)
-        print("Coffre ouvert!")
+        print("Trunk opened!")
     end
 })
 ```
 
-### Enregistrer un type global
+### Global Type with canInteract
 
 ```lua
--- Tous les véhicules
-local targetId = exports['nbl-contextmenu']:addGlobalVehicle({
-    label = "Entrer dans le véhicule",
+exports['nbl-contextmenu']:addGlobalVehicle({
+    label = "Enter Vehicle",
+    icon = "fas fa-car-side",
     name = "enter_vehicle",
     distance = 5.0,
-    canInteract = function(entity, distance, coords, name, bone)
+    canInteract = function(entity, distance, worldPos, name, bone)
         return not IsVehicleLocked(entity) and distance <= 3.0
     end,
     onSelect = function(entity, coords, registration)
         TaskEnterVehicle(PlayerPedId(), entity, 10000, -1, 1.0, 1, 0)
     end
 })
-
--- Tous les objets
-exports['nbl-contextmenu']:addGlobalObject({
-    label = "Inspecter",
-    name = "inspect_object",
-    onSelect = function(entity, coords, registration)
-        print("Objet inspecté!")
-    end
-})
-
--- Tous les peds
-exports['nbl-contextmenu']:addGlobalPed({
-    label = "Parler",
-    name = "talk_ped",
-    onSelect = function(entity, coords, registration)
-        print("Conversation démarrée!")
-    end
-})
-
--- Tous les joueurs
-exports['nbl-contextmenu']:addGlobalPlayer({
-    label = "Interagir",
-    name = "interact_player",
-    onSelect = function(entity, coords, registration)
-        print("Interaction avec joueur!")
-    end
-})
 ```
 
-### Enregistrer un modèle spécifique
+### Sub-menu with Items
 
 ```lua
-exports['nbl-contextmenu']:addModel(GetHashKey('prop_atm_01'), {
-    label = "Utiliser l'ATM",
-    name = "use_atm",
-    distance = 2.0,
+exports['nbl-contextmenu']:addEntity(ped, {
+    label = "Give Item",
+    icon = "fas fa-gift",
+    name = "give_item",
+    items = {
+        {
+            id = 9001,
+            label = "Give Money",
+            icon = "fas fa-dollar-sign",
+            canInteract = function(entity, distance)
+                return distance <= 2.0
+            end
+        },
+        {
+            id = 9002,
+            label = "Give Food",
+            icon = "fas fa-utensils"
+        },
+        {
+            id = 9003,
+            label = "Give Weapon",
+            icon = "fas fa-gun",
+            canInteract = function(entity, distance)
+                return distance <= 1.0
+            end
+        }
+    },
     onSelect = function(entity, coords, registration)
-        print("ATM utilisé!")
+        print("Giving item!")
     end
 })
 ```
 
-### Options globales (sol/ciel)
+### Using shouldClose
 
 ```lua
--- Clic sur le sol
-exports['nbl-contextmenu']:addGlobalOption('ground', {
-    label = "Placer un objet",
-    name = "place_object",
-    onSelect = function(entity, coords, registration)
-        CreateObject(GetHashKey('prop_chair_01a'), coords.x, coords.y, coords.z, true, true, true)
-    end
-})
-
--- Clic dans le ciel
-exports['nbl-contextmenu']:addGlobalOption('sky', {
-    label = "Action spéciale",
-    name = "special_action",
-    onSelect = function(entity, coords, registration)
-        print("Action spéciale!")
+exports['nbl-contextmenu']:addEntity(vehicle, {
+    label = "Enter Vehicle",
+    icon = "fas fa-car-side",
+    shouldClose = true,  -- Closes menu AND deactivates target
+    onSelect = function(entity, coords)
+        TaskEnterVehicle(PlayerPedId(), entity, 10000, -1, 1.0, 1, 0)
     end
 })
 ```
 
-### Utiliser des actions (export, event, serverEvent, command)
+### Using Exports/Events
 
 ```lua
 -- Export
 exports['nbl-contextmenu']:addGlobalVehicle({
-    label = "Réparer",
+    label = "Repair",
     name = "repair_vehicle",
-    export = "mechanic.repair",  -- Format: "resource.export"
+    export = "mechanic.repair",
     distance = 3.0
 })
 
--- Event client
+-- Client Event
 exports['nbl-contextmenu']:addGlobalObject({
-    label = "Ouvrir",
+    label = "Open",
     name = "open_object",
     event = "myresource:openObject",
     distance = 2.0
 })
 
--- Event serveur
+-- Server Event
 exports['nbl-contextmenu']:addGlobalPed({
-    label = "Voler",
-    name = "steal_ped",
-    serverEvent = "myresource:stealPed",
+    label = "Search",
+    name = "search_ped",
+    serverEvent = "police:searchPed",
     distance = 1.5
 })
 
--- Commande
+-- Command
 exports['nbl-contextmenu']:addGlobalVehicle({
-    label = "Réparer",
+    label = "Repair",
     name = "repair_cmd",
     command = "repair",
     distance = 3.0
 })
 ```
 
-### Retirer une option
+### Self-Targeting
 
 ```lua
--- Par ID
-exports['nbl-contextmenu']:removeEntity(targetId)
-
--- Par nom (pour les types globaux)
-exports['nbl-contextmenu']:removeGlobalVehicle("enter_vehicle")
-exports['nbl-contextmenu']:removeGlobalObject("inspect_object")
-exports['nbl-contextmenu']:removeGlobalPed("talk_ped")
-exports['nbl-contextmenu']:removeGlobalPlayer("interact_player")
-```
-
-### Désactiver le targeting
-
-```lua
-exports['nbl-contextmenu']:disableTargeting()
-```
-
-## 🔌 API Complète
-
-### Exports disponibles
-
-| Fonction | Description | Paramètres | Retour |
-|----------|-------------|------------|--------|
-| `disableTargeting()` | Désactive le targeting | - | - |
-| `addEntity(entity, options)` | Ajoute une entité spécifique | entity, options | id |
-| `removeEntity(id)` | Retire une entité | id | boolean |
-| `addLocalEntity(entity, options)` | Ajoute une entité locale | entity, options | id |
-| `removeLocalEntity(id)` | Retire une entité locale | id | boolean |
-| `addGlobalType(entityType, options)` | Ajoute un type global | entityType, options | id |
-| `addGlobalOption(optionType, options)` | Ajoute une option globale | optionType, options | id |
-| `removeGlobalOption(id)` | Retire une option globale | id | boolean |
-| `addGlobalObject(options)` | Ajoute tous les objets | options | id |
-| `removeGlobalObject(name)` | Retire les objets | name | boolean |
-| `addGlobalPed(options)` | Ajoute tous les peds | options | id |
-| `removeGlobalPed(name)` | Retire les peds | name | boolean |
-| `addGlobalPlayer(options)` | Ajoute tous les joueurs | options | id |
-| `removeGlobalPlayer(name)` | Retire les joueurs | name | boolean |
-| `addGlobalVehicle(options)` | Ajoute tous les véhicules | options | id |
-| `removeGlobalVehicle(name)` | Retire les véhicules | name | boolean |
-| `addModel(model, options)` | Ajoute un modèle spécifique | model, options | id |
-| `removeModel(id)` | Retire un modèle | id | boolean |
-
-### Options disponibles
-
-| Option | Type | Description | Requis |
-|--------|------|-------------|--------|
-| `label` | string | Texte de l'interaction | Oui |
-| `name` | string | Identifiant unique (pour retirer) | Non |
-| `icon` | string | Icône Font Awesome | Non |
-| `distance` | number | Distance maximale | Non (défaut: 5.0) |
-| `canInteract` | function | Condition pour afficher | Non |
-| `onSelect` | function | Callback au clic | Non |
-| `export` | string | Export à appeler | Non |
-| `event` | string | Event client | Non |
-| `serverEvent` | string | Event serveur | Non |
-| `command` | string | Commande à exécuter | Non |
-| `enabled` | boolean | Activer/désactiver | Non (défaut: true) |
-
-### Types d'entités
-
-- `self` : Le joueur lui-même
-- `vehicle` : Tous les véhicules
-- `player` : Tous les joueurs
-- `ped` : Tous les peds (NPCs)
-- `object` : Tous les objets
-- `ground` : Le sol
-- `sky` : Le ciel (clic dans le vide)
-
-### Callback canInteract
-
-```lua
-canInteract = function(entity, distance, coords, name, bone)
-    -- entity: L'entité ciblée (nil pour ground/sky)
-    -- distance: Distance du joueur à l'entité
-    -- coords: Coordonnées du point de collision
-    -- name: Nom de l'option (si défini)
-    -- bone: Bone ID (pour les peds, nil pour l'instant)
-    
-    -- Retourner true pour afficher l'option, false pour la cacher
-    return distance <= 3.0
-end
-```
-
-### Callback onSelect
-
-```lua
-onSelect = function(entity, coords, registration)
-    -- entity: L'entité ciblée (nil pour ground/sky)
-    -- coords: Coordonnées du point de collision
-    -- registration: L'objet d'enregistrement complet
-    
-    -- Votre code ici
-end
-```
-
-## 🎯 Exemples complets
-
-### Exemple 1 : Système de coffre de véhicule
-
-```lua
--- Client
-CreateThread(function()
-    while true do
-        Wait(1000)
-        
-        local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
-        if vehicle ~= 0 then
-            exports['nbl-contextmenu']:addEntity(vehicle, {
-                label = "Ouvrir le coffre",
-                name = "open_trunk",
-                icon = "fa-solid fa-box",
-                distance = 3.0,
-                canInteract = function(entity, distance, coords, name, bone)
-                    return not IsVehicleLocked(entity) and distance <= 3.0
-                end,
-                onSelect = function(entity, coords, registration)
-                    TriggerServerEvent('trunk:open', entity)
-                end
-            })
-        end
+exports['nbl-contextmenu']:addGlobalSelf({
+    label = "Check Health",
+    icon = "fas fa-heart",
+    name = "self_health",
+    distance = 5.0,
+    onSelect = function(entity, coords)
+        local health = GetEntityHealth(entity)
+        print("Your health: " .. health)
     end
-end)
+})
 ```
 
-### Exemple 2 : ATM interactif
+### Model-Specific Registration
 
 ```lua
--- Client
 exports['nbl-contextmenu']:addModel(GetHashKey('prop_atm_01'), {
-    label = "Utiliser l'ATM",
+    label = "Use ATM",
+    icon = "fas fa-credit-card",
     name = "use_atm",
-    icon = "fa-solid fa-credit-card",
     distance = 2.0,
-    canInteract = function(entity, distance, coords, name, bone)
-        return distance <= 2.0
-    end,
-    onSelect = function(entity, coords, registration)
+    onSelect = function(entity, coords)
         TriggerEvent('banking:openATM')
     end
 })
 ```
 
-### Exemple 3 : Interaction avec les joueurs
+## 🎯 Advanced Features
+
+### Real-time Option Updates
+
+The menu automatically refreshes options based on `canInteract` conditions when open. Set `Config.Menu.refreshInterval` to control the refresh rate (0 to disable).
 
 ```lua
--- Client
-exports['nbl-contextmenu']:addGlobalPlayer({
-    label = "Fouiller",
-    name = "search_player",
-    icon = "fa-solid fa-magnifying-glass",
-    distance = 2.0,
-    canInteract = function(entity, distance, coords, name, bone)
-        local targetPed = entity
-        return not IsPedDeadOrDying(targetPed, true) and distance <= 2.0
-    end,
-    serverEvent = "police:searchPlayer",
-    distance = 2.0
-})
+Config.Menu = {
+    refreshInterval = 500  -- Refresh every 500ms
+}
 ```
 
-## 🔧 Optimisations
+### Resource Auto-cleanup
 
-Le script est optimisé pour une performance maximale :
+When a resource stops, all its registered options are automatically removed. No manual cleanup needed!
 
-- **Thread en veille** : Quand Alt n'est pas pressé, le thread dort (Wait(500)) = 0ms CPU
-- **Thread actif** : Quand Alt est pressé, le thread tourne à Wait(0) pour une réactivité maximale
-- **Gestion d'erreurs** : Toutes les natives sont protégées avec pcall pour éviter les crashes
-- **Vérifications** : Toutes les entités sont validées avant utilisation
+### Sub-menu canInteract
 
-## 🛡️ Gestion d'erreurs
+Sub-menu items support `canInteract` just like main options:
 
-Le script inclut une gestion d'erreurs complète :
+```lua
+items = {
+    {
+        id = 1,
+        label = "Option 1",
+        canInteract = function(entity, distance)
+            return distance <= 2.0
+        end
+    }
+}
+```
 
-- Protection de toutes les natives avec `pcall`
-- Vérification de validité des entités avant utilisation
-- Messages d'erreur clairs en cas de problème
-- Fallback pour éviter les crashes
+### Manual Refresh
+
+You can manually refresh options if needed:
+
+```lua
+exports['nbl-contextmenu']:refreshOptions()
+```
+
+## ⚡ Performance
+
+- **0ms CPU when inactive**: Thread sleeps (Wait(500)) when Alt is not pressed
+- **Efficient when active**: Optimized raycast with camera caching
+- **Auto-cleanup thread**: Cleans invalid entities every 30 seconds
+- **Outline cleanup**: Dedicated thread ensures outlines are removed when inactive
+- **Smart refresh**: Only refreshes menu if options actually changed
+
+## 🔧 Troubleshooting
+
+### Outline not removing
+
+The system includes a dedicated cleanup thread that forces outline removal. If issues persist:
+1. Check `Config.Outline.enabled` is `true`
+2. Verify entity type is in `Config.Outline.allowedTypes`
+3. Ensure `allowSelfTarget = true` if targeting yourself
+
+### Menu not opening
+
+1. Check console for errors
+2. Verify entity has registered options
+3. Check `canInteract` returns `true`
+4. Ensure distance is within `Config.Target.maxDistance`
+
+### Options not updating
+
+1. Check `Config.Menu.refreshInterval` is not `0`
+2. Verify `canInteract` function is correct
+3. Check console for errors in `canInteract`
+
+### Self-targeting not working
+
+1. Set `Config.Target.allowSelfTarget = true`
+2. Use `addGlobalSelf()` instead of `addGlobalPlayer()`
+3. Ensure `Config.Outline.allowedTypes.self = true`
 
 ## 📝 Notes
 
-- Le système est compatible avec OX-Target (même API)
-- Support pour `ground` et `sky` (non disponible dans OX-Target)
-- Impossible de se viser soi-même par défaut (comme OX-Target)
-- Le curseur change automatiquement au survol d'une entité targetable
+- The menu closes automatically when clicking outside or right-clicking
+- Sub-menus have a 300ms delay before closing when moving mouse away
+- Options with `shouldClose = true` will close the menu AND deactivate targeting
+- All callbacks are protected with `pcall` to prevent crashes
+- Resource cleanup is automatic - no need to manually remove options
 
-## 🤝 Contribution
+## 🤝 Contributing
 
-Les contributions sont les bienvenues ! N'hésitez pas à ouvrir une issue ou une pull request.
+Contributions are welcome! Please feel free to submit issues or pull requests.
 
 ## 📄 License
 
-Ce script est sous licence libre. Utilisez-le comme vous le souhaitez.
+This resource is open-source. Use it as you wish.
 
 ---
 
-**Développé avec ❤️ pour la communauté FiveM**
+**Developed with ❤️ for the FiveM community**

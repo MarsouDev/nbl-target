@@ -8,6 +8,8 @@ author 'Nebula'
 version '2.0.0'
 license 'Custom - See LICENSE file'
 
+ui_page 'web/index.html'
+
 shared_scripts {
     'config/config.lua'
 }
@@ -19,10 +21,7 @@ client_scripts {
     'client/registry.lua',
     'client/nui.lua',
     'client/main.lua',
-    'client/test.lua'
 }
-
-ui_page 'web/index.html'
 
 files {
     'web/index.html',

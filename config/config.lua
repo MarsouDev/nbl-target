@@ -25,11 +25,12 @@ Config.Controls = {
 -- ============================================================================
 Config.Target = {
     -- Maximum distance for raycast detection (in meters)
-    maxDistance = 10.0,
+    maxDistance = 15.0,
     
-    -- Raycast flags (-1 = all entity types)
+    -- Raycast flags (what entities can be detected)
     -- 1 = World, 2 = Vehicles, 4 = Peds, 8 = Objects, 16 = Water, 32 = Foliage
-    raycastFlags = -1,
+    -- 287 = World + Vehicles + Peds + Objects + Water + IntersectEntities (recommended)
+    raycastFlags = 287,
     
     -- Allow targeting yourself (set to true for self-interaction menus)
     allowSelfTarget = true,
@@ -45,17 +46,18 @@ Config.Outline = {
     -- Enable/disable outline effect
     enabled = true,
     
-    -- Outline color (RGBA)
-    color = {r = 255, g = 255, b = 0, a = 255},
+    -- Outline color (RGBA) - Nebula Blue
+    color = {r = 88, g = 101, b = 242, a = 255},
     
     -- Entity types that can have outline
-    -- Set to true to enable outline for each type
+    -- WARNING: SetEntityDrawOutline CRASHES on peds! Keep ped/player/self = false
+    -- See: https://forum.cfx.re/t/setentitydrawoutline-on-ped-causes-client-crash/4845685
     allowedTypes = {
         vehicle = true,
         object = true,
-        ped = true,
-        player = true,
-        self = true
+        ped = false,
+        player = false,
+        self = false
     }
 }
 
@@ -70,20 +72,30 @@ Config.Marker = {
     -- 1 = Cylinder, 2 = Arrow down, 25 = Horizontal circle, 27 = Arrow
     type = 2,
     
-    -- Marker color (RGBA)
-    color = {r = 255, g = 255, b = 0, a = 200},
+    -- Marker color (RGBA) - Nebula Blue
+    color = {r = 88, g = 101, b = 242, a = 200},
     
     -- Marker scale
     scale = 0.3,
     
-    -- Height above entity (in meters)
-    height = 1.0,
+    -- Height offset above entity top (in meters)
+    -- The marker automatically detects entity height, this is just extra offset
+    height = 0.3,
     
     -- Rotate marker (for visual effect)
     rotate = true,
     
     -- Bobbing animation (up and down)
-    bob = true
+    bob = true,
+    
+    -- Entity types that can have marker
+    allowedTypes = {
+        vehicle = true,
+        object = true,
+        ped = true,
+        player = true,
+        self = true
+    }
 }
 
 -- ============================================================================

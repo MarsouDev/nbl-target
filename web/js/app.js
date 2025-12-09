@@ -144,7 +144,7 @@ function positionMenu(menu, x, y) {
     const windowHeight = window.innerHeight;
     
     const menuWidth = 220;
-    const menuHeight = Math.min(State.options.length * 40 + 12, 400);
+    const menuHeight = Math.min(State.options.length * 36 + 8, 450);
     
     let finalX = x;
     let finalY = y;

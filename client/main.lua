@@ -85,12 +85,8 @@ CreateThread(function()
                 local hoverData = Visual:ProcessHover(State.cursorPos)
                 State.lastHover = hoverData
                 
-                if hoverData then
-                    if hoverData.hasOptions then
-                        SetMouseCursorSprite(5)
-                    else
-                        SetMouseCursorSprite(0)
-                    end
+                if hoverData and hoverData.entity then
+                    SetMouseCursorSprite(5)
                 else
                     SetMouseCursorSprite(0)
                 end

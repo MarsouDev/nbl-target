@@ -17,7 +17,8 @@ client_scripts {
     'client/modules/visual.lua',
     'client/registry.lua',
     'client/nui.lua',
-    'client/main.lua'
+    'client/main.lua',
+    'client/test.lua'
 }
 
 ui_page 'web/index.html'

@@ -294,15 +294,38 @@ function Registry:AddModel(models, options)
     return CreateHandler(ids, "model", self.models)
 end
 
+local function IsOptionsArray(options)
+    if type(options) ~= "table" then return false end
+    if options[1] and type(options[1]) == "table" then
+        return options[1].label ~= nil or options[1].name ~= nil or options[1].icon ~= nil or options[1].onSelect ~= nil
+    end
+    return false
+end
+
 function Registry:AddGlobalType(entityType, options)
-    local id = GenerateId()
-    local entry = CreateEntry(id, {
-        entityType = entityType,
-        registryType = "global"
-    }, options)
-    
-    self.globalTypes[id] = entry
-    return CreateHandler(id, "global", self.globalTypes)
+    if IsOptionsArray(options) then
+        local ids = {}
+        for _, opt in ipairs(options) do
+            local id = GenerateId()
+            local entry = CreateEntry(id, {
+                entityType = entityType,
+                registryType = "global"
+            }, opt)
+            
+            self.globalTypes[id] = entry
+            ids[#ids + 1] = id
+        end
+        return CreateHandler(ids, "global", self.globalTypes)
+    else
+        local id = GenerateId()
+        local entry = CreateEntry(id, {
+            entityType = entityType,
+            registryType = "global"
+        }, options)
+        
+        self.globalTypes[id] = entry
+        return CreateHandler(id, "global", self.globalTypes)
+    end
 end
 
 function Registry:AddGlobalVehicle(options)

@@ -1,27 +1,32 @@
 :root {
-    --bg-primary: rgba(15, 15, 20, 0.95);
-    --bg-secondary: rgba(25, 25, 35, 0.95);
-    --bg-hover: rgba(255, 255, 255, 0.08);
-    --bg-active: rgba(255, 200, 50, 0.15);
+    --bg-primary: rgba(10, 10, 15, 0.35);
+    --bg-secondary: rgba(18, 18, 25, 0.35);
+    --bg-hover: rgba(88, 101, 242, 0.15);
+    --bg-active: rgba(88, 101, 242, 0.25);
     --text-primary: rgba(255, 255, 255, 0.95);
-    --text-secondary: rgba(255, 255, 255, 0.6);
-    --text-muted: rgba(255, 255, 255, 0.4);
-    --accent: #ffc832;
-    --accent-hover: #ffdb6d;
-    --accent-glow: rgba(255, 200, 50, 0.3);
-    --border: rgba(255, 255, 255, 0.08);
-    --border-hover: rgba(255, 255, 255, 0.15);
-    --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
+    --text-secondary: rgba(255, 255, 255, 0.65);
+    --text-muted: rgba(255, 255, 255, 0.45);
+    --accent: #5865f2;
+    --accent-hover: #7289da;
+    --accent-glow: rgba(88, 101, 242, 0.4);
+    --accent-gradient: linear-gradient(135deg, #5865f2 0%, #7289da 100%);
+    --border: rgba(88, 101, 242, 0.2);
+    --border-hover: rgba(88, 101, 242, 0.4);
+    --icon-bg: rgba(88, 101, 242, 0.1);
+    --icon-bg-hover: rgba(88, 101, 242, 0.2);
+    --shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 6px 20px rgba(0, 0, 0, 0.4);
     --menu-width: 220px;
-    --menu-padding: 6px;
-    --item-padding: 10px 14px;
+    --menu-padding: 4px;
+    --item-padding: 8px 10px;
     --item-gap: 2px;
-    --border-radius: 10px;
+    --border-radius: 8px;
     --border-radius-sm: 6px;
-    --transition-fast: 0.12s ease;
-    --transition-normal: 0.2s ease;
-    --transition-slow: 0.3s ease;
+    --icon-container-size: 28px;
+    --icon-size: 14px;
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.25s ease;
+    --transition-slow: 0.35s ease;
 }
 
 * {
@@ -44,11 +49,15 @@ html, body {
     padding: 0;
 }
 
+html {
+    background: transparent !important;
+}
+
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size: 13px;
     color: var(--text-primary);
-    background: transparent;
+    background: transparent !important;
     user-select: none;
     -webkit-font-smoothing: antialiased;
 }
@@ -58,16 +67,11 @@ body {
     width: var(--menu-width);
     min-width: var(--menu-width);
     max-width: var(--menu-width);
-    max-height: 450px;
-    background: var(--bg-primary);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    border: 1px solid rgba(255, 200, 50, 0.2);
+    max-height: 500px;
+    background: rgba(15, 15, 20, 0.95);
+    border: 1px solid var(--border);
     border-radius: var(--border-radius);
-    box-shadow: 
-        var(--shadow-lg),
-        0 0 20px rgba(255, 200, 50, 0.15),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     padding: var(--menu-padding);
     z-index: 1000;
     opacity: 0;
@@ -76,10 +80,8 @@ body {
     transition: 
         opacity var(--transition-normal),
         transform var(--transition-normal);
-    mix-blend-mode: normal;
     overflow: hidden;
     box-sizing: border-box;
-    contain: layout style paint;
 }
 
 .context-menu.visible {
@@ -104,11 +106,12 @@ body {
     display: flex;
     flex-direction: column;
     gap: var(--item-gap);
-    max-height: 400px;
+    max-height: 450px;
     overflow-y: auto;
     overflow-x: hidden;
     width: 100%;
     box-sizing: border-box;
+    padding: 1px 0;
 }
 
 .menu-items::-webkit-scrollbar {
@@ -120,18 +123,20 @@ body {
 }
 
 .menu-items::-webkit-scrollbar-thumb {
-    background: var(--border-hover);
+    background: var(--accent);
     border-radius: 2px;
+    opacity: 0.5;
 }
 
 .menu-items::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
+    background: var(--accent-hover);
+    opacity: 0.8;
 }
 
 .menu-item {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     padding: var(--item-padding);
     border-radius: var(--border-radius-sm);
     cursor: pointer;
@@ -147,7 +152,7 @@ body {
 
 .menu-item:active,
 .menu-item.clicked {
-    transform: scale(0.96);
+    transform: scale(0.97);
     background: var(--bg-active);
 }
 
@@ -156,20 +161,53 @@ body {
 }
 
 .menu-item .item-icon {
-    width: 18px;
-    height: 18px;
+    width: var(--icon-container-size);
+    height: var(--icon-container-size);
+    min-width: var(--icon-container-size);
+    min-height: var(--icon-container-size);
     display: flex;
     align-items: center;
     justify-content: center;
+    background: var(--icon-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
     color: var(--accent);
-    font-size: 14px;
+    font-size: var(--icon-size);
     flex-shrink: 0;
+    transition: 
+        background var(--transition-fast),
+        border-color var(--transition-fast),
+        color var(--transition-fast),
+        transform var(--transition-fast);
+    position: relative;
+    overflow: hidden;
+}
+
+.menu-item .item-icon::before {
+    display: none;
+}
+
+.menu-item .item-icon i {
+    position: relative;
+    z-index: 1;
+    transition: color var(--transition-fast);
+}
+
+.menu-item:hover .item-icon {
+    background: var(--icon-bg-hover);
+    border-color: var(--border-hover);
+    transform: scale(1.03);
+}
+
+
+.menu-item:hover .item-icon i {
+    color: var(--accent-hover);
 }
 
 .menu-item .item-label {
     flex: 1;
     font-weight: 500;
-    font-size: 13px;
+    font-size: 12px;
     color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
@@ -177,8 +215,8 @@ body {
 }
 
 .menu-item .submenu-arrow {
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -187,16 +225,23 @@ body {
     transition: 
         color var(--transition-fast),
         transform var(--transition-fast);
+    flex-shrink: 0;
 }
 
 .menu-item:hover .submenu-arrow {
     color: var(--accent);
-    transform: translateX(2px);
+    transform: translateX(3px);
 }
 
 .menu-separator {
     height: 1px;
-    background: var(--border);
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--border) 20%,
+        var(--border) 80%,
+        transparent 100%
+    );
     margin: 4px 8px;
 }
 
@@ -258,23 +303,11 @@ body {
 .menu-item:nth-child(10) { animation-delay: 0.20s; }
 
 .context-menu::before {
-    content: '';
-    position: absolute;
-    top: -2px;
-    left: -2px;
-    right: -2px;
-    bottom: -2px;
-    border-radius: calc(var(--border-radius) + 2px);
-    background: linear-gradient(
-        135deg,
-        var(--accent-glow) 0%,
-        rgba(255, 200, 50, 0.15) 30%,
-        transparent 60%,
-        transparent 100%
-    );
-    z-index: -1;
-    opacity: 1;
-    pointer-events: none;
+    display: none;
+}
+
+.context-menu::after {
+    display: none;
 }
 
 .context-menu[data-scale="0.8"] {

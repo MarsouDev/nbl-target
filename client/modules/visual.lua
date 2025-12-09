@@ -6,32 +6,87 @@ local IsActive = false
 
 Visual = {}
 
+local function SafeSetOutline(entity, enabled)
+    if not entity or entity == 0 then return false end
+    local success = pcall(function()
+        if DoesEntityExist(entity) then
+            SetEntityDrawOutline(entity, enabled)
+        end
+    end)
+    return success
+end
+
+local function SafeSetOutlineColor(r, g, b, a)
+    pcall(function()
+        SetEntityDrawOutlineColor(r, g, b, a)
+    end)
+end
+
+local function SafeGetEntityCoords(entity)
+    if not entity or entity == 0 then return nil end
+    local success, coords = pcall(function()
+        if DoesEntityExist(entity) then
+            return GetEntityCoords(entity)
+        end
+        return nil
+    end)
+    if success and coords then
+        return coords
+    end
+    return nil
+end
+
+local function GetEntityTopOffset(entity)
+    if not entity or entity == 0 then return 1.0 end
+    
+    local success, topOffset = pcall(function()
+        if not DoesEntityExist(entity) then return 1.0 end
+        
+        local model = GetEntityModel(entity)
+        if not model or model == 0 then return 1.0 end
+        
+        local min, max = GetModelDimensions(model)
+        if not min or not max then return 1.0 end
+        
+        return max.z > 0 and max.z or 1.0
+    end)
+    
+    return success and topOffset or 1.0
+end
+
 function Visual:SetActive(active)
     IsActive = active
 end
 
 function Visual:IsEntityValid(entity)
-    return entity and entity ~= 0 and DoesEntityExist(entity)
+    if not entity or entity == 0 then return false end
+    local success, exists = pcall(DoesEntityExist, entity)
+    return success and exists
 end
 
 function Visual:GetEntityType(entity)
     if not self:IsEntityValid(entity) then return "unknown" end
     
-    if IsEntityAVehicle(entity) then
-        return "vehicle"
-    elseif IsEntityAPed(entity) then
-        return "ped"
-    elseif IsEntityAnObject(entity) then
-        return "object"
-    end
+    local success, result = pcall(function()
+        if IsEntityAVehicle(entity) then
+            return "vehicle"
+        elseif IsEntityAPed(entity) then
+            return "ped"
+        elseif IsEntityAnObject(entity) then
+            return "object"
+        end
+        return "unknown"
+    end)
     
-    return "unknown"
+    return success and result or "unknown"
 end
 
 function Visual:CanUseOutline(entity)
     if not Config.Outline.enabled then return false end
+    if not self:IsEntityValid(entity) then return false end
     
-    if entity == PlayerPedId() then
+    local playerPed = PlayerPedId()
+    if entity == playerPed then
         return Config.Outline.allowedTypes["self"] == true
     end
     
@@ -39,12 +94,28 @@ function Visual:CanUseOutline(entity)
     return Config.Outline.allowedTypes[entityType] == true
 end
 
+function Visual:CanUseMarker(entity)
+    if not Config.Marker.enabled then return false end
+    if not self:IsEntityValid(entity) then return false end
+    
+    local playerPed = PlayerPedId()
+    if entity == playerPed then
+        return Config.Marker.allowedTypes and Config.Marker.allowedTypes["self"] == true
+    end
+    
+    local entityType = self:GetEntityType(entity)
+    if not Config.Marker.allowedTypes then return true end
+    return Config.Marker.allowedTypes[entityType] == true
+end
+
 function Visual:GetDistanceToEntity(entity)
     if not self:IsEntityValid(entity) then return math.huge end
     
     local playerPed = PlayerPedId()
     local playerCoords = GetEntityCoords(playerPed)
-    local entityCoords = GetEntityCoords(entity)
+    local entityCoords = SafeGetEntityCoords(entity)
+    
+    if not entityCoords then return math.huge end
     
     return #(playerCoords - entityCoords)
 end
@@ -57,7 +128,7 @@ end
 function Visual:RemoveOutline(entity)
     if not entity or entity == 0 then return end
     OutlineTracker[entity] = nil
-    SetEntityDrawOutline(entity, false)
+    SafeSetOutline(entity, false)
 end
 
 function Visual:DrawOutline(entity, color)
@@ -66,31 +137,32 @@ function Visual:DrawOutline(entity, color)
     if not self:CanUseOutline(entity) then return end
     
     local c = color or Config.Outline.color
-    SetEntityDrawOutlineColor(c.r, c.g, c.b, c.a)
-    SetEntityDrawOutline(entity, true)
-    self:AddOutline(entity)
+    SafeSetOutlineColor(c.r, c.g, c.b, c.a)
+    if SafeSetOutline(entity, true) then
+        self:AddOutline(entity)
+    end
 end
 
 function Visual:ClearOutline(entity)
     if not entity or entity == 0 then return end
-    SetEntityDrawOutline(entity, false)
+    SafeSetOutline(entity, false)
     OutlineTracker[entity] = nil
 end
 
 function Visual:ClearAllTracked()
     for entity, _ in pairs(OutlineTracker) do
         if entity and entity ~= 0 then
-            SetEntityDrawOutline(entity, false)
+            SafeSetOutline(entity, false)
         end
     end
     OutlineTracker = {}
     
     if CurrentEntity and CurrentEntity ~= 0 then
-        SetEntityDrawOutline(CurrentEntity, false)
+        SafeSetOutline(CurrentEntity, false)
     end
     
     if LockedEntity and LockedEntity ~= 0 then
-        SetEntityDrawOutline(LockedEntity, false)
+        SafeSetOutline(LockedEntity, false)
     end
     
     CurrentEntity = nil
@@ -100,12 +172,16 @@ end
 function Visual:DrawMarker(entity, color)
     if not Config.Marker.enabled then return end
     if not self:IsEntityValid(entity) then return end
+    if not self:CanUseMarker(entity) then return end
     
-    local entityCoords = GetEntityCoords(entity)
+    local entityCoords = SafeGetEntityCoords(entity)
+    if not entityCoords then return end
+    
     local c = color or Config.Marker.color
     local scale = Config.Marker.scale
     
-    local markerZ = entityCoords.z + Config.Marker.height
+    local topOffset = GetEntityTopOffset(entity)
+    local markerZ = entityCoords.z + topOffset + Config.Marker.height
     
     if Config.Marker.bob then
         markerZ = markerZ + (math.sin(GetGameTimer() / 200) * 0.05)
@@ -118,20 +194,22 @@ function Visual:DrawMarker(entity, color)
         end
     end
     
-    DrawMarker(
-        Config.Marker.type,
-        entityCoords.x, entityCoords.y, markerZ,
-        0.0, 0.0, 0.0,
-        0.0, 0.0, MarkerRotation,
-        scale, scale, scale,
-        c.r, c.g, c.b, c.a,
-        Config.Marker.bob,
-        true,
-        2,
-        Config.Marker.rotate,
-        nil, nil,
-        false
-    )
+    pcall(function()
+        DrawMarker(
+            Config.Marker.type,
+            entityCoords.x, entityCoords.y, markerZ,
+            0.0, 0.0, 0.0,
+            0.0, 0.0, MarkerRotation,
+            scale, scale, scale,
+            c.r, c.g, c.b, c.a,
+            Config.Marker.bob,
+            true,
+            2,
+            Config.Marker.rotate,
+            nil, nil,
+            false
+        )
+    end)
 end
 
 function Visual:HighlightEntity(entity)
@@ -249,18 +327,18 @@ CreateThread(function()
             if now - lastCleanup > 200 then
                 for entity, _ in pairs(OutlineTracker) do
                     if entity and entity ~= 0 then
-                        SetEntityDrawOutline(entity, false)
+                        SafeSetOutline(entity, false)
                     end
                 end
                 OutlineTracker = {}
                 
                 if CurrentEntity and CurrentEntity ~= 0 then
-                    SetEntityDrawOutline(CurrentEntity, false)
+                    SafeSetOutline(CurrentEntity, false)
                     CurrentEntity = nil
                 end
                 
                 if LockedEntity and LockedEntity ~= 0 then
-                    SetEntityDrawOutline(LockedEntity, false)
+                    SafeSetOutline(LockedEntity, false)
                     LockedEntity = nil
                 end
                 

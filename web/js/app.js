@@ -4,7 +4,10 @@ const State = {
     position: { x: 0, y: 0 },
     scale: 1.0,
     activeSubmenu: null,
-    submenuTimeout: null
+    submenuTimeout: null,
+    submenuCloseTimeout: null,
+    isClosing: false,
+    isInSubmenu: false
 };
 
 const Elements = {
@@ -23,13 +26,18 @@ window.addEventListener('message', (event) => {
             break;
             
         case 'close':
-            closeMenu();
+            closeMenu(false);
+            break;
+            
+        case 'refresh':
+            refreshMenu(data.options);
             break;
     }
 });
 
 function openMenu(options, position, scale = 1.0) {
     if (!options || options.length === 0) return;
+    if (State.isClosing) return;
     
     State.isOpen = true;
     State.options = options;
@@ -37,25 +45,27 @@ function openMenu(options, position, scale = 1.0) {
     State.scale = scale;
     
     buildMenuItems(options, Elements.menuItems);
-    
     positionMenu(Elements.menu, position.x, position.y);
     
     if (scale !== 1.0) {
         Elements.menu.setAttribute('data-scale', scale.toString());
     }
     
+    Elements.menu.style.display = 'block';
     Elements.menu.classList.remove('hidden');
+    
     requestAnimationFrame(() => {
         Elements.menu.classList.add('visible');
     });
 }
 
-function closeMenu() {
-    if (!State.isOpen) return;
+function closeMenu(sendCallback = true) {
+    if (!State.isOpen || State.isClosing) return;
     
     State.isOpen = false;
+    State.isClosing = true;
     
-    closeSubmenu();
+    closeSubmenu(true);
     
     Elements.menu.classList.remove('visible');
     Elements.menu.classList.add('animate-out');
@@ -63,13 +73,28 @@ function closeMenu() {
     setTimeout(() => {
         Elements.menu.classList.add('hidden');
         Elements.menu.classList.remove('animate-out');
+        Elements.menu.style.display = 'none';
         Elements.menuItems.innerHTML = '';
-    }, 150);
+        State.isClosing = false;
+    }, 120);
     
-    fetch('https://nbl-contextmenu/close', {
-        method: 'POST',
-        body: JSON.stringify({})
-    });
+    if (sendCallback) {
+        fetch('https://nbl-contextmenu/close', {
+            method: 'POST',
+            body: JSON.stringify({})
+        });
+    }
+}
+
+function refreshMenu(options) {
+    if (!State.isOpen) return;
+    if (!options || options.length === 0) {
+        closeMenu();
+        return;
+    }
+    
+    State.options = options;
+    buildMenuItems(options, Elements.menuItems);
 }
 
 function buildMenuItems(options, container) {
@@ -103,7 +128,10 @@ function buildMenuItems(options, container) {
             item.appendChild(arrow);
         }
         
-        item.addEventListener('click', () => handleItemClick(option));
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleItemClick(option, item);
+        });
         item.addEventListener('mouseenter', () => handleItemHover(option, item));
         item.addEventListener('mouseleave', () => handleItemLeave(option));
         
@@ -112,7 +140,6 @@ function buildMenuItems(options, container) {
 }
 
 function positionMenu(menu, x, y) {
-    const menuRect = menu.getBoundingClientRect();
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
     
@@ -164,40 +191,64 @@ function openSubmenu(items, parentItem) {
     Elements.submenu.style.left = `${x}px`;
     Elements.submenu.style.top = `${y}px`;
     
+    Elements.submenu.style.display = 'block';
     Elements.submenu.classList.remove('hidden');
     requestAnimationFrame(() => {
         Elements.submenu.classList.add('visible');
     });
 }
 
-function closeSubmenu() {
+function closeSubmenu(immediate = false) {
     if (State.submenuTimeout) {
         clearTimeout(State.submenuTimeout);
         State.submenuTimeout = null;
     }
     
-    State.activeSubmenu = null;
+    if (State.submenuCloseTimeout) {
+        clearTimeout(State.submenuCloseTimeout);
+        State.submenuCloseTimeout = null;
+    }
     
-    Elements.submenu.classList.remove('visible');
-    Elements.submenu.classList.add('hidden');
-    Elements.submenuItems.innerHTML = '';
+    if (immediate) {
+        State.activeSubmenu = null;
+        State.isInSubmenu = false;
+        Elements.submenu.classList.remove('visible');
+        Elements.submenu.classList.add('hidden');
+        Elements.submenu.style.display = 'none';
+        Elements.submenuItems.innerHTML = '';
+    }
 }
 
-function handleItemClick(option) {
+function scheduleSubmenuClose() {
+    if (State.submenuCloseTimeout) {
+        clearTimeout(State.submenuCloseTimeout);
+    }
+    
+    State.submenuCloseTimeout = setTimeout(() => {
+        if (!State.isInSubmenu) {
+            closeSubmenu(true);
+        }
+    }, 300);
+}
+
+function handleItemClick(option, itemElement) {
     if (option.items && option.items.length > 0) {
         return;
     }
     
-    fetch('https://nbl-contextmenu/select', {
-        method: 'POST',
-        body: JSON.stringify({
-            id: option.id,
-            name: option.name,
-            label: option.label
-        })
-    });
+    itemElement.classList.add('clicked');
     
-    closeMenu();
+    setTimeout(() => {
+        fetch('https://nbl-contextmenu/select', {
+            method: 'POST',
+            body: JSON.stringify({
+                id: option.id,
+                name: option.name,
+                label: option.label,
+                shouldClose: option.shouldClose || false
+            })
+        });
+    }, 50);
 }
 
 function handleItemHover(option, item) {
@@ -205,39 +256,64 @@ function handleItemHover(option, item) {
         clearTimeout(State.submenuTimeout);
     }
     
+    if (State.submenuCloseTimeout) {
+        clearTimeout(State.submenuCloseTimeout);
+        State.submenuCloseTimeout = null;
+    }
+    
     if (option.items && option.items.length > 0) {
         State.submenuTimeout = setTimeout(() => {
             openSubmenu(option.items, item);
         }, 150);
-    } else {
-        closeSubmenu();
+    } else if (State.activeSubmenu && State.activeSubmenu !== item) {
+        scheduleSubmenuClose();
     }
 }
 
 function handleItemLeave(option) {
+    if (option.items && option.items.length > 0) {
+        scheduleSubmenuClose();
+    }
 }
 
 document.addEventListener('keydown', (event) => {
     if (!State.isOpen) return;
     
-    switch (event.key) {
-        case 'Escape':
-            closeMenu();
-            break;
+    if (event.key === 'Escape') {
+        closeMenu();
     }
 });
 
-document.addEventListener('click', (event) => {
+document.addEventListener('mousedown', (event) => {
     if (!State.isOpen) return;
     
     const clickedMenu = Elements.menu.contains(event.target);
     const clickedSubmenu = Elements.submenu.contains(event.target);
     
-    if (!clickedMenu && !clickedSubmenu) {
+    if (event.button === 2) {
+        event.preventDefault();
+        closeMenu();
+        return;
+    }
+    
+    if (event.button === 0 && !clickedMenu && !clickedSubmenu) {
         closeMenu();
     }
 });
 
 document.addEventListener('contextmenu', (event) => {
     event.preventDefault();
+});
+
+Elements.submenu.addEventListener('mouseenter', () => {
+    State.isInSubmenu = true;
+    if (State.submenuCloseTimeout) {
+        clearTimeout(State.submenuCloseTimeout);
+        State.submenuCloseTimeout = null;
+    }
+});
+
+Elements.submenu.addEventListener('mouseleave', () => {
+    State.isInSubmenu = false;
+    scheduleSubmenuClose();
 });

@@ -4,6 +4,7 @@ Registry = {
     models = {},
     globalTypes = {},
     byName = {},
+    byResource = {},
     nextId = 1,
     enabled = true
 }
@@ -12,6 +13,14 @@ local function GenerateId()
     local id = Registry.nextId
     Registry.nextId = Registry.nextId + 1
     return id
+end
+
+local function GetSourceResource()
+    local invokingResource = GetInvokingResource()
+    if invokingResource then
+        return invokingResource
+    end
+    return GetCurrentResourceName()
 end
 
 local function CreateEntry(id, baseData, options)
@@ -30,7 +39,9 @@ local function CreateEntry(id, baseData, options)
         serverEvent = options.serverEvent,
         command = options.command,
         items = options.items,
-        enabled = options.enabled ~= false
+        enabled = options.enabled ~= false,
+        shouldClose = options.shouldClose or false,
+        resource = options.resource or GetSourceResource()
     }
     
     for k, v in pairs(baseData) do
@@ -41,6 +52,13 @@ local function CreateEntry(id, baseData, options)
         Registry.byName[entry.name] = entry
     end
     
+    if entry.resource then
+        if not Registry.byResource[entry.resource] then
+            Registry.byResource[entry.resource] = {}
+        end
+        Registry.byResource[entry.resource][id] = entry
+    end
+    
     return entry
 end
 
@@ -49,6 +67,9 @@ local function RemoveEntry(storage, id)
         local entry = storage[id]
         if entry.name then
             Registry.byName[entry.name] = nil
+        end
+        if entry.resource and Registry.byResource[entry.resource] then
+            Registry.byResource[entry.resource][id] = nil
         end
         storage[id] = nil
         return true
@@ -149,6 +170,10 @@ function Registry:AddGlobalPlayer(options)
     return self:AddGlobalType("player", options)
 end
 
+function Registry:AddGlobalSelf(options)
+    return self:AddGlobalType("self", options)
+end
+
 function Registry:AddGlobalObject(options)
     return self:AddGlobalType("object", options)
 end
@@ -213,6 +238,62 @@ function Registry:RemoveByName(name)
     end
     
     return false
+end
+
+function Registry:RemoveByResource(resourceName)
+    if not self.byResource[resourceName] then return 0 end
+    
+    local count = 0
+    local toRemove = {}
+    
+    for id, entry in pairs(self.byResource[resourceName]) do
+        toRemove[#toRemove + 1] = {id = id, type = entry.registryType}
+    end
+    
+    for _, item in ipairs(toRemove) do
+        local storage
+        if item.type == "entity" then
+            storage = self.entities
+        elseif item.type == "localEntity" then
+            storage = self.localEntities
+        elseif item.type == "model" then
+            storage = self.models
+        elseif item.type == "global" then
+            storage = self.globalTypes
+        end
+        
+        if storage and RemoveEntry(storage, item.id) then
+            count = count + 1
+        end
+    end
+    
+    self.byResource[resourceName] = nil
+    
+    if Config.Debug.enabled and count > 0 then
+        print("^3[NBL-Target]^7 Removed " .. count .. " entries from resource: " .. resourceName)
+    end
+    
+    return count
+end
+
+function Registry:CleanupInvalidEntities()
+    local removed = 0
+    
+    for id, entry in pairs(self.entities) do
+        if entry.entity and not DoesEntityExist(entry.entity) then
+            RemoveEntry(self.entities, id)
+            removed = removed + 1
+        end
+    end
+    
+    for id, entry in pairs(self.localEntities) do
+        if entry.entity and not DoesEntityExist(entry.entity) then
+            RemoveEntry(self.localEntities, id)
+            removed = removed + 1
+        end
+    end
+    
+    return removed
 end
 
 function Registry:GetEntityRegistrations(entity)
@@ -319,18 +400,58 @@ function Registry:HasAvailableOptions(entity, entityType, worldPos)
     return false
 end
 
+function Registry:FilterSubItems(items, entity, worldPos)
+    if not items or #items == 0 then return nil end
+    
+    local filtered = {}
+    
+    for _, item in ipairs(items) do
+        local canShow = true
+        
+        if item.canInteract then
+            local distance = Entity:GetDistance(entity, worldPos)
+            local success, result = pcall(item.canInteract, entity, distance, worldPos, item.name or item.id)
+            
+            if not success then
+                if Config.Debug.enabled then
+                    print("^1[NBL-Target]^7 SubItem canInteract error: " .. tostring(result))
+                end
+                canShow = false
+            else
+                canShow = result == true
+            end
+        end
+        
+        if canShow then
+            filtered[#filtered + 1] = {
+                id = item.id,
+                label = item.label,
+                icon = item.icon,
+                name = item.name,
+                shouldClose = item.shouldClose
+            }
+        end
+    end
+    
+    if #filtered == 0 then return nil end
+    return filtered
+end
+
 function Registry:GetAvailableOptions(entity, entityType, worldPos)
     local registrations = self:GetAllRegistrations(entity, entityType)
     local available = {}
     
     for _, reg in ipairs(registrations) do
         if self:CanInteract(reg, entity, worldPos, nil) then
+            local filteredItems = self:FilterSubItems(reg.items, entity, worldPos)
+            
             available[#available + 1] = {
                 id = reg.id,
                 label = reg.label,
                 icon = reg.icon,
                 name = reg.name,
-                items = reg.items
+                items = filteredItems,
+                shouldClose = reg.shouldClose
             }
         end
     end
@@ -385,3 +506,14 @@ function Registry:GetById(id)
         or self.models[id]
         or self.globalTypes[id]
 end
+
+AddEventHandler('onResourceStop', function(resourceName)
+    Registry:RemoveByResource(resourceName)
+end)
+
+CreateThread(function()
+    while true do
+        Wait(30000)
+        Registry:CleanupInvalidEntities()
+    end
+end)

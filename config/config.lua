@@ -31,8 +31,8 @@ Config.Target = {
     -- 1 = World, 2 = Vehicles, 4 = Peds, 8 = Objects, 16 = Water, 32 = Foliage
     raycastFlags = -1,
     
-    -- Allow targeting yourself
-    allowSelfTarget = false,
+    -- Allow targeting yourself (set to true for self-interaction menus)
+    allowSelfTarget = true,
     
     -- Default interaction distance for options
     defaultDistance = 3.0
@@ -49,11 +49,13 @@ Config.Outline = {
     color = {r = 255, g = 255, b = 0, a = 255},
     
     -- Entity types that can have outline
-    -- Note: Peds are disabled by default to prevent crashes
+    -- Set to true to enable outline for each type
     allowedTypes = {
         vehicle = true,
         object = true,
-        ped = false
+        ped = true,
+        player = true,
+        self = true
     }
 }
 
@@ -101,7 +103,12 @@ Config.Menu = {
     animationDuration = 150,
     
     -- Close menu when releasing activation key
-    closeOnKeyRelease = true
+    closeOnKeyRelease = true,
+    
+    -- Refresh interval when menu is open (in milliseconds)
+    -- Updates canInteract conditions in real-time
+    -- Set to 0 to disable auto-refresh
+    refreshInterval = 500
 }
 
 -- ============================================================================

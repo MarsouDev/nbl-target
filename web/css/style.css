@@ -1,5 +1,5 @@
 :root {
-    --bg-primary: rgba(15, 15, 20, 0.75);
+    --bg-primary: rgba(15, 15, 20, 0.95);
     --bg-secondary: rgba(25, 25, 35, 0.95);
     --bg-hover: rgba(255, 255, 255, 0.08);
     --bg-active: rgba(255, 200, 50, 0.15);
@@ -12,7 +12,7 @@
     --border: rgba(255, 255, 255, 0.08);
     --border-hover: rgba(255, 255, 255, 0.15);
     --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
     --menu-width: 220px;
     --menu-padding: 6px;
     --item-padding: 10px 14px;
@@ -56,12 +56,18 @@ body {
 .context-menu {
     position: fixed;
     width: var(--menu-width);
+    min-width: var(--menu-width);
+    max-width: var(--menu-width);
+    max-height: 450px;
     background: var(--bg-primary);
-    backdrop-filter: blur(8px) saturate(180%);
-    -webkit-backdrop-filter: blur(8px) saturate(180%);
-    border: 1px solid var(--border);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 1px solid rgba(255, 200, 50, 0.2);
     border-radius: var(--border-radius);
-    box-shadow: var(--shadow-lg);
+    box-shadow: 
+        var(--shadow-lg),
+        0 0 20px rgba(255, 200, 50, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
     padding: var(--menu-padding);
     z-index: 1000;
     opacity: 0;
@@ -71,6 +77,9 @@ body {
         opacity var(--transition-normal),
         transform var(--transition-normal);
     mix-blend-mode: normal;
+    overflow: hidden;
+    box-sizing: border-box;
+    contain: layout style paint;
 }
 
 .context-menu.visible {
@@ -80,6 +89,7 @@ body {
 
 .context-menu.hidden {
     pointer-events: none;
+    display: none;
 }
 
 .context-menu.submenu {
@@ -97,6 +107,8 @@ body {
     max-height: 400px;
     overflow-y: auto;
     overflow-x: hidden;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .menu-items::-webkit-scrollbar {
@@ -133,8 +145,10 @@ body {
     background: var(--bg-hover);
 }
 
-.menu-item:active {
-    transform: scale(0.98);
+.menu-item:active,
+.menu-item.clicked {
+    transform: scale(0.96);
+    background: var(--bg-active);
 }
 
 .menu-item.has-submenu:hover {
@@ -254,17 +268,13 @@ body {
     background: linear-gradient(
         135deg,
         var(--accent-glow) 0%,
-        transparent 50%,
+        rgba(255, 200, 50, 0.15) 30%,
+        transparent 60%,
         transparent 100%
     );
     z-index: -1;
-    opacity: 0;
-    transition: opacity var(--transition-normal);
-    pointer-events: none;
-}
-
-.context-menu:hover::before {
     opacity: 1;
+    pointer-events: none;
 }
 
 .context-menu[data-scale="0.8"] {

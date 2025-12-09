@@ -1,23 +1,6 @@
---[[
-    NBL Context Menu - Test File
-    
-    This file creates test objects with target options.
-    Uncomment the line in fxmanifest.lua to enable.
-    
-    Commands:
-    /testpad - Create a test ped with options
-    /testcar - Create a test car with options
-    /cleartest - Remove all test objects
-]]
-
 local TestObjects = {}
 
--- ============================================================================
--- CREATE TEST PED
--- ============================================================================
-
-RegisterCommand('testpad', function()
-    -- Remove existing test ped
+RegisterCommand('testped', function()
     if TestObjects.ped then
         if TestObjects.ped.entity and DoesEntityExist(TestObjects.ped.entity) then
             DeleteEntity(TestObjects.ped.entity)
@@ -27,13 +10,11 @@ RegisterCommand('testpad', function()
         end
     end
     
-    -- Get spawn position
     local playerPed = PlayerPedId()
     local playerCoords = GetEntityCoords(playerPed)
     local forward = GetEntityForwardVector(playerPed)
     local spawnPos = playerCoords + forward * 2.0
     
-    -- Load ped model (random NPC)
     local pedModels = {
         'a_m_m_skater_01',
         'a_m_y_hipster_01',
@@ -49,7 +30,6 @@ RegisterCommand('testpad', function()
         Wait(10)
     end
     
-    -- Create ped
     local ped = CreatePed(4, model, spawnPos.x, spawnPos.y, spawnPos.z, GetEntityHeading(playerPed), true, true)
     SetEntityAsMissionEntity(ped, true, true)
     SetPedFleeAttributes(ped, 0, false)
@@ -58,16 +38,13 @@ RegisterCommand('testpad', function()
     TaskSetBlockingOfNonTemporaryEvents(ped, true)
     SetBlockingOfNonTemporaryEvents(ped, true)
     
-    -- Store reference
     TestObjects.ped = {
         entity = ped,
         optionIds = {}
     }
     
-    -- Add options
     local ids = TestObjects.ped.optionIds
     
-    -- Option 1: Talk
     ids[#ids + 1] = exports['nbl-contextmenu']:addEntity(ped, {
         label = "Talk",
         icon = "fas fa-comments",
@@ -80,14 +57,12 @@ RegisterCommand('testpad', function()
         end
     })
     
-    -- Option 2: Search
     ids[#ids + 1] = exports['nbl-contextmenu']:addEntity(ped, {
         label = "Search",
         icon = "fas fa-hand-sparkles",
         name = "test_search",
         distance = 1.5,
         canInteract = function(entity, distance)
-            -- Only show if very close
             return distance <= 1.5
         end,
         onSelect = function(entity, coords)
@@ -97,7 +72,6 @@ RegisterCommand('testpad', function()
         end
     })
     
-    -- Option 3: Give Item (with submenu)
     ids[#ids + 1] = exports['nbl-contextmenu']:addEntity(ped, {
         label = "Give Item",
         icon = "fas fa-gift",
@@ -107,7 +81,10 @@ RegisterCommand('testpad', function()
             {
                 id = 9001,
                 label = "Give Money",
-                icon = "fas fa-dollar-sign"
+                icon = "fas fa-dollar-sign",
+                canInteract = function(entity, distance)
+                    return distance <= 2.0
+                end
             },
             {
                 id = 9002,
@@ -117,7 +94,10 @@ RegisterCommand('testpad', function()
             {
                 id = 9003,
                 label = "Give Weapon",
-                icon = "fas fa-gun"
+                icon = "fas fa-gun",
+                canInteract = function(entity, distance)
+                    return distance <= 1.0
+                end
             }
         },
         onSelect = function(entity, coords)
@@ -125,7 +105,6 @@ RegisterCommand('testpad', function()
         end
     })
     
-    -- Option 4: Follow
     ids[#ids + 1] = exports['nbl-contextmenu']:addEntity(ped, {
         label = "Follow Me",
         icon = "fas fa-walking",
@@ -137,19 +116,17 @@ RegisterCommand('testpad', function()
         end
     })
     
-    -- Option 5: Delete
     ids[#ids + 1] = exports['nbl-contextmenu']:addEntity(ped, {
         label = "Delete",
         icon = "fas fa-trash",
         name = "test_delete_ped",
         distance = 3.0,
+        shouldClose = true,
         onSelect = function(entity, coords)
             print("^2[TEST]^7 Deleting ped!")
-            -- Remove options first
             for _, optId in ipairs(TestObjects.ped.optionIds) do
                 exports['nbl-contextmenu']:removeEntity(optId)
             end
-            -- Delete entity
             DeleteEntity(entity)
             TestObjects.ped = nil
         end
@@ -161,12 +138,7 @@ RegisterCommand('testpad', function()
     
 end, false)
 
--- ============================================================================
--- CREATE TEST CAR
--- ============================================================================
-
 RegisterCommand('testcar', function()
-    -- Remove existing test car
     if TestObjects.car then
         if TestObjects.car.entity and DoesEntityExist(TestObjects.car.entity) then
             DeleteEntity(TestObjects.car.entity)
@@ -176,43 +148,37 @@ RegisterCommand('testcar', function()
         end
     end
     
-    -- Get spawn position
     local playerPed = PlayerPedId()
     local playerCoords = GetEntityCoords(playerPed)
     local forward = GetEntityForwardVector(playerPed)
     local spawnPos = playerCoords + forward * 4.0
     
-    -- Load model
     local model = GetHashKey('adder')
     RequestModel(model)
     while not HasModelLoaded(model) do
         Wait(10)
     end
     
-    -- Create vehicle
     local car = CreateVehicle(model, spawnPos.x, spawnPos.y, spawnPos.z, GetEntityHeading(playerPed), true, true)
     
-    -- Store reference
     TestObjects.car = {
         entity = car,
         optionIds = {}
     }
     
-    -- Add options
     local ids = TestObjects.car.optionIds
     
-    -- Option 1: Enter
     ids[#ids + 1] = exports['nbl-contextmenu']:addEntity(car, {
         label = "Enter Vehicle",
         icon = "fas fa-car-side",
         name = "test_enter",
         distance = 3.0,
+        shouldClose = true,
         onSelect = function(entity, coords)
             TaskEnterVehicle(PlayerPedId(), entity, 10000, -1, 1.0, 1, 0)
         end
     })
     
-    -- Option 2: Lock/Unlock
     ids[#ids + 1] = exports['nbl-contextmenu']:addEntity(car, {
         label = "Lock / Unlock",
         icon = "fas fa-lock",
@@ -230,7 +196,6 @@ RegisterCommand('testcar', function()
         end
     })
     
-    -- Option 3: Engine
     ids[#ids + 1] = exports['nbl-contextmenu']:addEntity(car, {
         label = "Toggle Engine",
         icon = "fas fa-key",
@@ -243,12 +208,12 @@ RegisterCommand('testcar', function()
         end
     })
     
-    -- Option 4: Delete
     ids[#ids + 1] = exports['nbl-contextmenu']:addEntity(car, {
         label = "Delete Vehicle",
         icon = "fas fa-trash",
         name = "test_delete_car",
         distance = 5.0,
+        shouldClose = true,
         onSelect = function(entity, coords)
             for _, optId in ipairs(TestObjects.car.optionIds) do
                 exports['nbl-contextmenu']:removeEntity(optId)
@@ -264,12 +229,7 @@ RegisterCommand('testcar', function()
     
 end, false)
 
--- ============================================================================
--- CLEAR ALL TEST OBJECTS
--- ============================================================================
-
 RegisterCommand('cleartest', function()
-    -- Clear ped
     if TestObjects.ped then
         if TestObjects.ped.entity and DoesEntityExist(TestObjects.ped.entity) then
             DeleteEntity(TestObjects.ped.entity)
@@ -280,7 +240,6 @@ RegisterCommand('cleartest', function()
         TestObjects.ped = nil
     end
     
-    -- Clear car
     if TestObjects.car then
         if TestObjects.car.entity and DoesEntityExist(TestObjects.car.entity) then
             DeleteEntity(TestObjects.car.entity)
@@ -295,14 +254,9 @@ RegisterCommand('cleartest', function()
     
 end, false)
 
--- ============================================================================
--- ADD GLOBAL OPTIONS FOR TESTING
--- ============================================================================
-
 CreateThread(function()
     Wait(1000)
     
-    -- Global option for all objects
     exports['nbl-contextmenu']:addGlobalObject({
         label = "Examine Object",
         icon = "fas fa-eye",
@@ -314,7 +268,6 @@ CreateThread(function()
         end
     })
     
-    -- Global option for all vehicles
     exports['nbl-contextmenu']:addGlobalVehicle({
         label = "Check Vehicle",
         icon = "fas fa-car",
@@ -326,6 +279,28 @@ CreateThread(function()
         end
     })
     
+    exports['nbl-contextmenu']:addGlobalSelf({
+        label = "Check Health",
+        icon = "fas fa-heart",
+        name = "self_check_health",
+        distance = 5.0,
+        onSelect = function(entity, coords)
+            local health = GetEntityHealth(entity)
+            print("^3[Self]^7 Your health: " .. health)
+        end
+    })
+    
+    exports['nbl-contextmenu']:addGlobalSelf({
+        label = "Play Animation",
+        icon = "fas fa-person-walking",
+        name = "self_animation",
+        distance = 5.0,
+        shouldClose = true,
+        onSelect = function(entity, coords)
+            print("^3[Self]^7 Playing animation!")
+            TaskStartScenarioInPlace(entity, "WORLD_HUMAN_CHEERING", 0, true)
+        end
+    })
+    
     print("^2[TEST]^7 Global test options registered")
 end)
-

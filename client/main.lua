@@ -1,8 +1,11 @@
 local State = {
     active = false,
     lastHover = nil,
-    cursorPos = vector2(0.5, 0.5)
+    cursorPos = vector2(0.5, 0.5),
+    lastClickTime = 0
 }
+
+local CLICK_COOLDOWN = 100
 
 local function Activate()
     if State.active then return end
@@ -10,6 +13,8 @@ local function Activate()
     State.active = true
     State.cursorPos = vector2(0.5, 0.5)
     SetCursorLocation(0.5, 0.5)
+    
+    Visual:SetActive(true)
     
     if Config.Debug.enabled then
         print("^2[NBL-Target]^7 Targeting mode activated")
@@ -20,12 +25,21 @@ local function Deactivate()
     if not State.active then return end
     
     State.active = false
-    State.lastHover = nil
+    Visual:SetActive(false)
     
-    Visual:ClearAll()
+    local entityToClean = nil
+    if State.lastHover and State.lastHover.entity then
+        entityToClean = State.lastHover.entity
+    end
     
     NUI:Close()
+    Visual:ClearAll()
     
+    if entityToClean and entityToClean ~= 0 then
+        SetEntityDrawOutline(entityToClean, false)
+    end
+    
+    State.lastHover = nil
     SetMouseCursorSprite(0)
     
     if Config.Debug.enabled then
@@ -43,45 +57,64 @@ local function GetCursorPosition()
     return vector2(GetControlNormal(0, 239), GetControlNormal(0, 240))
 end
 
+local function CanClick()
+    local now = GetGameTimer()
+    if now - State.lastClickTime < CLICK_COOLDOWN then
+        return false
+    end
+    return true
+end
+
+local function RegisterClick()
+    State.lastClickTime = GetGameTimer()
+end
+
 CreateThread(function()
     while true do
         if State.active then
             Wait(0)
             
-            SetMouseCursorActiveThisFrame()
             DisableControls()
             
-            State.cursorPos = GetCursorPosition()
-            
-            local hoverData = Visual:ProcessHover(State.cursorPos)
-            State.lastHover = hoverData
-            
-            if hoverData then
-                if hoverData.hasOptions then
-                    SetMouseCursorSprite(5)
+            if NUI:IsOpen() then
+                NUI:CheckDistance()
+                Visual:DrawLockedEntity()
+            else
+                SetMouseCursorActiveThisFrame()
+                State.cursorPos = GetCursorPosition()
+                local hoverData = Visual:ProcessHover(State.cursorPos)
+                State.lastHover = hoverData
+                
+                if hoverData then
+                    if hoverData.hasOptions then
+                        SetMouseCursorSprite(5)
+                    else
+                        SetMouseCursorSprite(0)
+                    end
                 else
                     SetMouseCursorSprite(0)
                 end
-            else
-                SetMouseCursorSprite(0)
             end
             
             if IsDisabledControlJustPressed(0, Config.Controls.selectKey) then
-                if NUI:IsOpen() then
-                elseif hoverData and hoverData.hasOptions then
-                    local options = Registry:GetAvailableOptions(
-                        hoverData.entity,
-                        hoverData.entityType,
-                        hoverData.worldPos
-                    )
+                if CanClick() then
+                    RegisterClick()
                     
-                    NUI:Open(
-                        options,
-                        State.cursorPos,
-                        hoverData.entity,
-                        hoverData.entityType,
-                        hoverData.worldPos
-                    )
+                    if not NUI:IsOpen() and State.lastHover and State.lastHover.hasOptions then
+                        local options = Registry:GetAvailableOptions(
+                            State.lastHover.entity,
+                            State.lastHover.entityType,
+                            State.lastHover.worldPos
+                        )
+                        
+                        NUI:Open(
+                            options,
+                            State.cursorPos,
+                            State.lastHover.entity,
+                            State.lastHover.entityType,
+                            State.lastHover.worldPos
+                        )
+                    end
                 end
             end
             
@@ -109,10 +142,63 @@ RegisterKeyMapping('+nbl_target', 'Open Target Menu', 'keyboard', Config.Control
 
 exports('isActive', function() return State.active end)
 exports('isMenuOpen', function() return NUI:IsOpen() end)
+exports('deactivate', function() Deactivate() end)
 
 exports('enable', function() Registry:Enable() end)
 exports('disable', function() Registry:Disable() end)
 exports('isEnabled', function() return Registry:IsEnabled() end)
+
+exports('getCurrentTarget', function()
+    if NUI:IsOpen() then
+        return {
+            entity = NUI:GetCurrentEntity(),
+            entityType = NUI:GetCurrentEntityType(),
+            worldPos = NUI:GetCurrentWorldPos()
+        }
+    elseif State.lastHover then
+        return {
+            entity = State.lastHover.entity,
+            entityType = State.lastHover.entityType,
+            worldPos = State.lastHover.worldPos
+        }
+    end
+    return nil
+end)
+
+exports('getSelectedEntity', function()
+    if NUI:IsOpen() then
+        return NUI:GetCurrentEntity()
+    end
+    return nil
+end)
+
+exports('closeMenu', function()
+    NUI:Close()
+end)
+
+exports('refreshOptions', function()
+    if not NUI:IsOpen() then return false end
+    
+    local entity = NUI:GetCurrentEntity()
+    local entityType = NUI:GetCurrentEntityType()
+    local worldPos = NUI:GetCurrentWorldPos()
+    
+    if not entity then return false end
+    
+    local options = Registry:GetAvailableOptions(entity, entityType, worldPos)
+    
+    if #options == 0 then
+        NUI:Close()
+        return false
+    end
+    
+    SendNUIMessage({
+        action = "refresh",
+        options = options
+    })
+    
+    return true
+end)
 
 exports('addEntity', function(entity, options)
     return Registry:AddEntity(entity, options)
@@ -136,6 +222,10 @@ end)
 
 exports('addGlobalPlayer', function(options)
     return Registry:AddGlobalPlayer(options)
+end)
+
+exports('addGlobalSelf', function(options)
+    return Registry:AddGlobalSelf(options)
 end)
 
 exports('addGlobalObject', function(options)
@@ -180,4 +270,8 @@ end)
 
 exports('removeByName', function(name)
     return Registry:RemoveByName(name)
+end)
+
+exports('removeByResource', function(resourceName)
+    return Registry:RemoveByResource(resourceName)
 end)

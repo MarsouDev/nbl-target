@@ -23,6 +23,118 @@ local function GetSourceResource()
     return GetCurrentResourceName()
 end
 
+local function NormalizeModels(models)
+    if type(models) == "table" then
+        local result = {}
+        for _, model in ipairs(models) do
+            if type(model) == "string" then
+                result[#result + 1] = GetHashKey(model)
+            else
+                result[#result + 1] = model
+            end
+        end
+        return result
+    elseif type(models) == "string" then
+        return { GetHashKey(models) }
+    else
+        return { models }
+    end
+end
+
+local function NormalizeEntities(entities)
+    if type(entities) == "table" and not entities.label then
+        return entities
+    else
+        return { entities }
+    end
+end
+
+local function CreateHandler(ids, registryType, storage)
+    local handler = {
+        ids = type(ids) == "table" and ids or { ids },
+        registryType = registryType
+    }
+    
+    function handler:remove()
+        local count = 0
+        for _, id in ipairs(self.ids) do
+            if Registry:RemoveById(id) then
+                count = count + 1
+            end
+        end
+        return count > 0
+    end
+    
+    function handler:setLabel(newLabel)
+        for _, id in ipairs(self.ids) do
+            local entry = Registry:GetById(id)
+            if entry then
+                entry.label = newLabel
+            end
+        end
+        return self
+    end
+    
+    function handler:setIcon(newIcon)
+        for _, id in ipairs(self.ids) do
+            local entry = Registry:GetById(id)
+            if entry then
+                entry.icon = newIcon
+            end
+        end
+        return self
+    end
+    
+    function handler:setEnabled(enabled)
+        for _, id in ipairs(self.ids) do
+            local entry = Registry:GetById(id)
+            if entry then
+                entry.enabled = enabled
+            end
+        end
+        return self
+    end
+    
+    function handler:setDistance(distance)
+        for _, id in ipairs(self.ids) do
+            local entry = Registry:GetById(id)
+            if entry then
+                entry.distance = distance
+            end
+        end
+        return self
+    end
+    
+    function handler:setCanInteract(fn)
+        for _, id in ipairs(self.ids) do
+            local entry = Registry:GetById(id)
+            if entry then
+                entry.canInteract = fn
+            end
+        end
+        return self
+    end
+    
+    function handler:setOnSelect(fn)
+        for _, id in ipairs(self.ids) do
+            local entry = Registry:GetById(id)
+            if entry then
+                entry.onSelect = fn
+            end
+        end
+        return self
+    end
+    
+    function handler:getId()
+        if #self.ids == 1 then
+            return self.ids[1]
+        end
+        return self.ids
+    end
+    
+    return handler
+end
+
 local function CreateEntry(id, baseData, options)
     options = options or {}
     
@@ -89,62 +201,97 @@ function Registry:IsEnabled()
     return self.enabled
 end
 
-function Registry:AddEntity(entity, options)
-    if not entity or entity == 0 then
+function Registry:AddEntity(entities, options)
+    if not entities then
         if Config.Debug.enabled then
-            print("^1[NBL-Target]^7 AddEntity: Invalid entity")
+            print("^1[NBL-Target]^7 AddEntity: Invalid entity/entities")
         end
         return nil
     end
     
-    local id = GenerateId()
-    local entry = CreateEntry(id, {
-        entity = entity,
-        registryType = "entity"
-    }, options)
+    local normalizedEntities = NormalizeEntities(entities)
+    local ids = {}
     
-    self.entities[id] = entry
-    return id
+    for _, entity in ipairs(normalizedEntities) do
+        if entity and entity ~= 0 then
+            local id = GenerateId()
+            local entry = CreateEntry(id, {
+                entity = entity,
+                registryType = "entity"
+            }, options)
+            
+            self.entities[id] = entry
+            ids[#ids + 1] = id
+        end
+    end
+    
+    if #ids == 0 then
+        if Config.Debug.enabled then
+            print("^1[NBL-Target]^7 AddEntity: No valid entities")
+        end
+        return nil
+    end
+    
+    return CreateHandler(ids, "entity", self.entities)
 end
 
-function Registry:AddLocalEntity(entity, options)
-    if not entity or entity == 0 then
+function Registry:AddLocalEntity(entities, options)
+    if not entities then
         if Config.Debug.enabled then
-            print("^1[NBL-Target]^7 AddLocalEntity: Invalid entity")
+            print("^1[NBL-Target]^7 AddLocalEntity: Invalid entity/entities")
         end
         return nil
     end
     
-    local id = GenerateId()
-    local entry = CreateEntry(id, {
-        entity = entity,
-        registryType = "localEntity"
-    }, options)
+    local normalizedEntities = NormalizeEntities(entities)
+    local ids = {}
     
-    self.localEntities[id] = entry
-    return id
+    for _, entity in ipairs(normalizedEntities) do
+        if entity and entity ~= 0 then
+            local id = GenerateId()
+            local entry = CreateEntry(id, {
+                entity = entity,
+                registryType = "localEntity"
+            }, options)
+            
+            self.localEntities[id] = entry
+            ids[#ids + 1] = id
+        end
+    end
+    
+    if #ids == 0 then
+        if Config.Debug.enabled then
+            print("^1[NBL-Target]^7 AddLocalEntity: No valid entities")
+        end
+        return nil
+    end
+    
+    return CreateHandler(ids, "localEntity", self.localEntities)
 end
 
-function Registry:AddModel(model, options)
-    if not model then
+function Registry:AddModel(models, options)
+    if not models then
         if Config.Debug.enabled then
-            print("^1[NBL-Target]^7 AddModel: Invalid model")
+            print("^1[NBL-Target]^7 AddModel: Invalid model(s)")
         end
         return nil
     end
     
-    if type(model) == "string" then
-        model = GetHashKey(model)
+    local normalizedModels = NormalizeModels(models)
+    local ids = {}
+    
+    for _, modelHash in ipairs(normalizedModels) do
+        local id = GenerateId()
+        local entry = CreateEntry(id, {
+            model = modelHash,
+            registryType = "model"
+        }, options)
+        
+        self.models[id] = entry
+        ids[#ids + 1] = id
     end
     
-    local id = GenerateId()
-    local entry = CreateEntry(id, {
-        model = model,
-        registryType = "model"
-    }, options)
-    
-    self.models[id] = entry
-    return id
+    return CreateHandler(ids, "model", self.models)
 end
 
 function Registry:AddGlobalType(entityType, options)
@@ -155,7 +302,7 @@ function Registry:AddGlobalType(entityType, options)
     }, options)
     
     self.globalTypes[id] = entry
-    return id
+    return CreateHandler(id, "global", self.globalTypes)
 end
 
 function Registry:AddGlobalVehicle(options)
@@ -505,6 +652,28 @@ function Registry:GetById(id)
         or self.localEntities[id]
         or self.models[id]
         or self.globalTypes[id]
+end
+
+function Registry:RemoveById(id)
+    local entry = self:GetById(id)
+    if not entry then return false end
+    
+    local storage
+    if entry.registryType == "entity" then
+        storage = self.entities
+    elseif entry.registryType == "localEntity" then
+        storage = self.localEntities
+    elseif entry.registryType == "model" then
+        storage = self.models
+    elseif entry.registryType == "global" then
+        storage = self.globalTypes
+    end
+    
+    if storage then
+        return RemoveEntry(storage, id)
+    end
+    
+    return false
 end
 
 AddEventHandler('onResourceStop', function(resourceName)

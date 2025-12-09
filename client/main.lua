@@ -176,30 +176,6 @@ exports('closeMenu', function()
     NUI:Close()
 end)
 
-exports('refreshOptions', function()
-    if not NUI:IsOpen() then return false end
-    
-    local entity = NUI:GetCurrentEntity()
-    local entityType = NUI:GetCurrentEntityType()
-    local worldPos = NUI:GetCurrentWorldPos()
-    
-    if not entity then return false end
-    
-    local options = Registry:GetAvailableOptions(entity, entityType, worldPos)
-    
-    if #options == 0 then
-        NUI:Close()
-        return false
-    end
-    
-    SendNUIMessage({
-        action = "refresh",
-        options = options
-    })
-    
-    return true
-end)
-
 exports('addEntity', function(entity, options)
     return Registry:AddEntity(entity, options)
 end)
@@ -237,35 +213,59 @@ exports('addGlobalOption', function(entityType, options)
 end)
 
 exports('removeEntity', function(id)
-    return Registry:RemoveEntity(id)
+    if type(id) == "table" and id.remove then
+        return id:remove()
+    end
+    return Registry:RemoveById(id)
 end)
 
 exports('removeLocalEntity', function(id)
-    return Registry:RemoveLocalEntity(id)
+    if type(id) == "table" and id.remove then
+        return id:remove()
+    end
+    return Registry:RemoveById(id)
 end)
 
 exports('removeModel', function(id)
-    return Registry:RemoveModel(id)
+    if type(id) == "table" and id.remove then
+        return id:remove()
+    end
+    return Registry:RemoveById(id)
 end)
 
 exports('removeGlobalVehicle', function(id)
-    return Registry:RemoveGlobalVehicle(id)
+    if type(id) == "table" and id.remove then
+        return id:remove()
+    end
+    return Registry:RemoveById(id)
 end)
 
 exports('removeGlobalPed', function(id)
-    return Registry:RemoveGlobalPed(id)
+    if type(id) == "table" and id.remove then
+        return id:remove()
+    end
+    return Registry:RemoveById(id)
 end)
 
 exports('removeGlobalPlayer', function(id)
-    return Registry:RemoveGlobalPlayer(id)
+    if type(id) == "table" and id.remove then
+        return id:remove()
+    end
+    return Registry:RemoveById(id)
 end)
 
 exports('removeGlobalObject', function(id)
-    return Registry:RemoveGlobalObject(id)
+    if type(id) == "table" and id.remove then
+        return id:remove()
+    end
+    return Registry:RemoveById(id)
 end)
 
 exports('removeGlobalOption', function(id)
-    return Registry:RemoveGlobalOption(id)
+    if type(id) == "table" and id.remove then
+        return id:remove()
+    end
+    return Registry:RemoveById(id)
 end)
 
 exports('removeByName', function(name)
@@ -274,4 +274,11 @@ end)
 
 exports('removeByResource', function(resourceName)
     return Registry:RemoveByResource(resourceName)
+end)
+
+exports('remove', function(idOrHandler)
+    if type(idOrHandler) == "table" and idOrHandler.remove then
+        return idOrHandler:remove()
+    end
+    return Registry:RemoveById(idOrHandler)
 end)

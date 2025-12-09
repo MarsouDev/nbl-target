@@ -186,7 +186,7 @@ RegisterNUICallback("select", function(data, cb)
         Registry:OnSelect(data.id, entity, worldPos)
         
         if shouldClose then
-            exports['nbl-contextmenu']:deactivate()
+            exports['nbl-target']:deactivate()
         end
     end
     

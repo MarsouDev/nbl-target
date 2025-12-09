@@ -79,7 +79,7 @@ function closeMenu(sendCallback = true) {
     }, 120);
     
     if (sendCallback) {
-        fetch('https://nbl-contextmenu/close', {
+        fetch('https://nbl-target/close', {
             method: 'POST',
             body: JSON.stringify({})
         });
@@ -239,7 +239,7 @@ function handleItemClick(option, itemElement) {
     itemElement.classList.add('clicked');
     
     setTimeout(() => {
-        fetch('https://nbl-contextmenu/select', {
+        fetch('https://nbl-target/select', {
             method: 'POST',
             body: JSON.stringify({
                 id: option.id,

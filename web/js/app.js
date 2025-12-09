@@ -4,17 +4,27 @@ const State = {
     position: { x: 0, y: 0 },
     scale: 1.0,
     activeSubmenu: null,
+    activeSubmenu2: null,
+    hoveredItem: null,
+    hoveredSubmenuItem: null,
     submenuTimeout: null,
+    submenu2Timeout: null,
     submenuCloseTimeout: null,
+    submenu2CloseTimeout: null,
     isClosing: false,
-    isInSubmenu: false
+    isInSubmenu: false,
+    isInSubmenu2: false,
+    currentSubmenuItems: [],
+    currentSubmenu2Items: []
 };
 
 const Elements = {
     menu: document.getElementById('context-menu'),
     menuItems: document.getElementById('menu-items'),
     submenu: document.getElementById('submenu'),
-    submenuItems: document.getElementById('submenu-items')
+    submenuItems: document.getElementById('submenu-items'),
+    submenu2: document.getElementById('submenu2'),
+    submenu2Items: document.getElementById('submenu2-items')
 };
 
 window.addEventListener('message', (event) => {
@@ -44,7 +54,7 @@ function openMenu(options, position, scale = 1.0) {
     State.position = position;
     State.scale = scale;
     
-    buildMenuItems(options, Elements.menuItems);
+    buildMenuItems(options, Elements.menuItems, 0);
     positionMenu(Elements.menu, position.x, position.y);
     
     if (scale !== 1.0) {
@@ -65,6 +75,8 @@ function closeMenu(sendCallback = true) {
     State.isOpen = false;
     State.isClosing = true;
     
+    clearAllTimeouts();
+    closeSubmenu2(true);
     closeSubmenu(true);
     
     Elements.menu.classList.remove('visible');
@@ -76,6 +88,8 @@ function closeMenu(sendCallback = true) {
         Elements.menu.style.display = 'none';
         Elements.menuItems.innerHTML = '';
         State.isClosing = false;
+        State.hoveredItem = null;
+        State.hoveredSubmenuItem = null;
     }, 120);
     
     if (sendCallback) {
@@ -83,6 +97,25 @@ function closeMenu(sendCallback = true) {
             method: 'POST',
             body: JSON.stringify({})
         });
+    }
+}
+
+function clearAllTimeouts() {
+    if (State.submenuTimeout) {
+        clearTimeout(State.submenuTimeout);
+        State.submenuTimeout = null;
+    }
+    if (State.submenu2Timeout) {
+        clearTimeout(State.submenu2Timeout);
+        State.submenu2Timeout = null;
+    }
+    if (State.submenuCloseTimeout) {
+        clearTimeout(State.submenuCloseTimeout);
+        State.submenuCloseTimeout = null;
+    }
+    if (State.submenu2CloseTimeout) {
+        clearTimeout(State.submenu2CloseTimeout);
+        State.submenu2CloseTimeout = null;
     }
 }
 
@@ -94,12 +127,12 @@ function refreshMenu(options) {
         return;
     }
     
-    const oldOptions = State.options;
     State.options = options;
     
-    if (State.isInSubmenu || State.activeSubmenu) {
+    if (State.isInSubmenu || State.isInSubmenu2 || State.activeSubmenu || State.activeSubmenu2) {
         updateCheckboxStates(options, Elements.menuItems);
         updateSubmenuCheckboxes(options);
+        updateSubmenu2Checkboxes(options);
     } else {
         updateMenuItems(options, Elements.menuItems);
     }
@@ -109,7 +142,7 @@ function updateMenuItems(options, container) {
     const existingItems = container.querySelectorAll('.menu-item');
     
     if (existingItems.length !== options.length) {
-        buildMenuItems(options, container);
+        buildMenuItems(options, container, 0);
         return;
     }
     
@@ -159,6 +192,7 @@ function updateSubmenuCheckboxes(mainOptions) {
     
     if (!parentOption || !parentOption.items) return;
     
+    State.currentSubmenuItems = parentOption.items;
     const submenuItems = Elements.submenuItems.querySelectorAll('.menu-item');
     
     parentOption.items.forEach((subOption, index) => {
@@ -176,7 +210,38 @@ function updateSubmenuCheckboxes(mainOptions) {
     });
 }
 
-function buildMenuItems(options, container) {
+function updateSubmenu2Checkboxes(mainOptions) {
+    if (!State.activeSubmenu || !State.activeSubmenu2) return;
+    
+    const parentIndex = parseInt(State.activeSubmenu.dataset.index);
+    const parentOption = mainOptions[parentIndex];
+    
+    if (!parentOption || !parentOption.items) return;
+    
+    const subParentIndex = parseInt(State.activeSubmenu2.dataset.index);
+    const subParentOption = parentOption.items[subParentIndex];
+    
+    if (!subParentOption || !subParentOption.items) return;
+    
+    State.currentSubmenu2Items = subParentOption.items;
+    const submenu2Items = Elements.submenu2Items.querySelectorAll('.menu-item');
+    
+    subParentOption.items.forEach((subOption, index) => {
+        const item = submenu2Items[index];
+        if (!item) return;
+        
+        const checkbox = item.querySelector('.item-checkbox');
+        if (checkbox && subOption.checkbox) {
+            if (subOption.checked) {
+                checkbox.classList.add('checked');
+            } else {
+                checkbox.classList.remove('checked');
+            }
+        }
+    });
+}
+
+function buildMenuItems(options, container, level) {
     container.innerHTML = '';
     
     options.forEach((option, index) => {
@@ -184,11 +249,12 @@ function buildMenuItems(options, container) {
         item.className = 'menu-item';
         item.dataset.id = option.id;
         item.dataset.index = index;
+        item.dataset.level = level;
         
         const hasSubmenu = option.items && option.items.length > 0;
         const hasCheckbox = option.checkbox === true;
         
-        if (hasSubmenu && !hasCheckbox) {
+        if (hasSubmenu && !hasCheckbox && level < 2) {
             item.classList.add('has-submenu');
         }
         
@@ -207,7 +273,7 @@ function buildMenuItems(options, container) {
         item.appendChild(icon);
         item.appendChild(label);
         
-        if (hasSubmenu && !hasCheckbox) {
+        if (hasSubmenu && !hasCheckbox && level < 2) {
             const arrow = document.createElement('div');
             arrow.className = 'submenu-arrow';
             arrow.innerHTML = '<i class="fas fa-chevron-right"></i>';
@@ -228,14 +294,11 @@ function buildMenuItems(options, container) {
             if (hasCheckbox) {
                 handleCheckboxClick(option, item);
             } else {
-                handleItemClick(option, item);
+                handleItemClick(option, item, level);
             }
         });
         
-        if (!hasCheckbox) {
-            item.addEventListener('mouseenter', () => handleItemHover(option, item));
-            item.addEventListener('mouseleave', () => handleItemLeave(option));
-        }
+        item.addEventListener('mouseenter', () => handleItemHover(option, item, level));
         
         container.appendChild(item);
     });
@@ -272,15 +335,18 @@ function positionMenu(menu, x, y) {
 }
 
 function openSubmenu(items, parentItem) {
+    closeSubmenu2(true);
+    
     State.activeSubmenu = parentItem;
     State.isInSubmenu = true;
+    State.currentSubmenuItems = items;
     
     fetch('https://nbl-target/submenuOpen', {
         method: 'POST',
         body: JSON.stringify({})
     });
     
-    buildMenuItems(items, Elements.submenuItems);
+    buildMenuItems(items, Elements.submenuItems, 1);
     
     const parentRect = parentItem.getBoundingClientRect();
     const menuRect = Elements.menu.getBoundingClientRect();
@@ -296,6 +362,14 @@ function openSubmenu(items, parentItem) {
         Elements.submenu.classList.remove('left');
     }
     
+    if (y + items.length * 36 > window.innerHeight - 10) {
+        y = window.innerHeight - items.length * 36 - 10;
+    }
+    
+    if (y < 10) {
+        y = 10;
+    }
+    
     Elements.submenu.style.left = `${x}px`;
     Elements.submenu.style.top = `${y}px`;
     
@@ -303,6 +377,45 @@ function openSubmenu(items, parentItem) {
     Elements.submenu.classList.remove('hidden');
     requestAnimationFrame(() => {
         Elements.submenu.classList.add('visible');
+    });
+}
+
+function openSubmenu2(items, parentItem) {
+    State.activeSubmenu2 = parentItem;
+    State.isInSubmenu2 = true;
+    State.currentSubmenu2Items = items;
+    
+    buildMenuItems(items, Elements.submenu2Items, 2);
+    
+    const parentRect = parentItem.getBoundingClientRect();
+    const submenuRect = Elements.submenu.getBoundingClientRect();
+    
+    let x = submenuRect.right + 5;
+    let y = parentRect.top;
+    
+    const submenuWidth = 220;
+    if (x + submenuWidth > window.innerWidth - 10) {
+        x = submenuRect.left - submenuWidth - 5;
+        Elements.submenu2.classList.add('left');
+    } else {
+        Elements.submenu2.classList.remove('left');
+    }
+    
+    if (y + items.length * 36 > window.innerHeight - 10) {
+        y = window.innerHeight - items.length * 36 - 10;
+    }
+    
+    if (y < 10) {
+        y = 10;
+    }
+    
+    Elements.submenu2.style.left = `${x}px`;
+    Elements.submenu2.style.top = `${y}px`;
+    
+    Elements.submenu2.style.display = 'block';
+    Elements.submenu2.classList.remove('hidden');
+    requestAnimationFrame(() => {
+        Elements.submenu2.classList.add('visible');
     });
 }
 
@@ -319,9 +432,13 @@ function closeSubmenu(immediate = false) {
     
     const wasOpen = State.activeSubmenu !== null;
     
+    closeSubmenu2(true);
+    
     if (immediate) {
         State.activeSubmenu = null;
         State.isInSubmenu = false;
+        State.currentSubmenuItems = [];
+        State.hoveredSubmenuItem = null;
         Elements.submenu.classList.remove('visible');
         Elements.submenu.classList.add('hidden');
         Elements.submenu.style.display = 'none';
@@ -336,20 +453,30 @@ function closeSubmenu(immediate = false) {
     }
 }
 
-function scheduleSubmenuClose() {
-    if (State.submenuCloseTimeout) {
-        clearTimeout(State.submenuCloseTimeout);
+function closeSubmenu2(immediate = false) {
+    if (State.submenu2Timeout) {
+        clearTimeout(State.submenu2Timeout);
+        State.submenu2Timeout = null;
     }
     
-    State.submenuCloseTimeout = setTimeout(() => {
-        if (!State.isInSubmenu) {
-            closeSubmenu(true);
-        }
-    }, 150);
+    if (State.submenu2CloseTimeout) {
+        clearTimeout(State.submenu2CloseTimeout);
+        State.submenu2CloseTimeout = null;
+    }
+    
+    if (immediate) {
+        State.activeSubmenu2 = null;
+        State.isInSubmenu2 = false;
+        State.currentSubmenu2Items = [];
+        Elements.submenu2.classList.remove('visible');
+        Elements.submenu2.classList.add('hidden');
+        Elements.submenu2.style.display = 'none';
+        Elements.submenu2Items.innerHTML = '';
+    }
 }
 
-function handleItemClick(option, itemElement) {
-    if (option.items && option.items.length > 0) {
+function handleItemClick(option, itemElement, level) {
+    if (option.items && option.items.length > 0 && level < 2) {
         return;
     }
     
@@ -391,28 +518,49 @@ function handleCheckboxClick(option, itemElement) {
     });
 }
 
-function handleItemHover(option, item) {
-    if (State.submenuTimeout) {
-        clearTimeout(State.submenuTimeout);
-    }
-    
-    if (State.submenuCloseTimeout) {
-        clearTimeout(State.submenuCloseTimeout);
-        State.submenuCloseTimeout = null;
-    }
-    
-    if (option.items && option.items.length > 0) {
-        State.submenuTimeout = setTimeout(() => {
-            openSubmenu(option.items, item);
-        }, 150);
-    } else if (State.activeSubmenu && State.activeSubmenu !== item) {
-        scheduleSubmenuClose();
-    }
-}
-
-function handleItemLeave(option) {
-    if (option.items && option.items.length > 0) {
-        scheduleSubmenuClose();
+function handleItemHover(option, item, level) {
+    if (level === 0) {
+        if (State.submenuTimeout) {
+            clearTimeout(State.submenuTimeout);
+            State.submenuTimeout = null;
+        }
+        if (State.submenuCloseTimeout) {
+            clearTimeout(State.submenuCloseTimeout);
+            State.submenuCloseTimeout = null;
+        }
+        
+        State.hoveredItem = item;
+        
+        if (State.activeSubmenu && State.activeSubmenu !== item) {
+            closeSubmenu(true);
+        }
+        
+        if (option.items && option.items.length > 0) {
+            State.submenuTimeout = setTimeout(() => {
+                openSubmenu(option.items, item);
+            }, 100);
+        }
+    } else if (level === 1) {
+        if (State.submenu2Timeout) {
+            clearTimeout(State.submenu2Timeout);
+            State.submenu2Timeout = null;
+        }
+        if (State.submenu2CloseTimeout) {
+            clearTimeout(State.submenu2CloseTimeout);
+            State.submenu2CloseTimeout = null;
+        }
+        
+        State.hoveredSubmenuItem = item;
+        
+        if (State.activeSubmenu2 && State.activeSubmenu2 !== item) {
+            closeSubmenu2(true);
+        }
+        
+        if (option.items && option.items.length > 0) {
+            State.submenu2Timeout = setTimeout(() => {
+                openSubmenu2(option.items, item);
+            }, 100);
+        }
     }
 }
 
@@ -429,6 +577,7 @@ document.addEventListener('mousedown', (event) => {
     
     const clickedMenu = Elements.menu.contains(event.target);
     const clickedSubmenu = Elements.submenu.contains(event.target);
+    const clickedSubmenu2 = Elements.submenu2.contains(event.target);
     
     if (event.button === 2) {
         event.preventDefault();
@@ -436,13 +585,28 @@ document.addEventListener('mousedown', (event) => {
         return;
     }
     
-    if (event.button === 0 && !clickedMenu && !clickedSubmenu) {
+    if (event.button === 0 && !clickedMenu && !clickedSubmenu && !clickedSubmenu2) {
         closeMenu();
     }
 });
 
 document.addEventListener('contextmenu', (event) => {
     event.preventDefault();
+});
+
+Elements.menu.addEventListener('mouseleave', () => {
+    if (State.submenuTimeout) {
+        clearTimeout(State.submenuTimeout);
+        State.submenuTimeout = null;
+    }
+    
+    if (!State.isInSubmenu && !State.isInSubmenu2) {
+        State.submenuCloseTimeout = setTimeout(() => {
+            if (!State.isInSubmenu && !State.isInSubmenu2) {
+                closeSubmenu(true);
+            }
+        }, 100);
+    }
 });
 
 Elements.submenu.addEventListener('mouseenter', () => {
@@ -455,5 +619,45 @@ Elements.submenu.addEventListener('mouseenter', () => {
 
 Elements.submenu.addEventListener('mouseleave', () => {
     State.isInSubmenu = false;
-    scheduleSubmenuClose();
+    
+    if (State.submenu2Timeout) {
+        clearTimeout(State.submenu2Timeout);
+        State.submenu2Timeout = null;
+    }
+    
+    if (!State.isInSubmenu2) {
+        State.submenu2CloseTimeout = setTimeout(() => {
+            if (!State.isInSubmenu2) {
+                closeSubmenu2(true);
+            }
+        }, 100);
+        
+        State.submenuCloseTimeout = setTimeout(() => {
+            if (!State.isInSubmenu && !State.isInSubmenu2) {
+                closeSubmenu(true);
+            }
+        }, 150);
+    }
+});
+
+Elements.submenu2.addEventListener('mouseenter', () => {
+    State.isInSubmenu2 = true;
+    if (State.submenu2CloseTimeout) {
+        clearTimeout(State.submenu2CloseTimeout);
+        State.submenu2CloseTimeout = null;
+    }
+    if (State.submenuCloseTimeout) {
+        clearTimeout(State.submenuCloseTimeout);
+        State.submenuCloseTimeout = null;
+    }
+});
+
+Elements.submenu2.addEventListener('mouseleave', () => {
+    State.isInSubmenu2 = false;
+    
+    State.submenu2CloseTimeout = setTimeout(() => {
+        if (!State.isInSubmenu2) {
+            closeSubmenu2(true);
+        }
+    }, 100);
 });

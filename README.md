@@ -674,7 +674,20 @@ Sub-menu items support all the same parameters as main options:
 - `onSelect`, `export`, `event`, `serverEvent`, `command`
 - `shouldClose`, `enabled`
 - `checkbox`, `checked`, `onCheck` (checkboxes work in sub-menus!)
-- `items` (nested sub-menus)
+- `items` (nested sub-menus, max 2 levels deep)
+
+### Sub-menu Depth Limit
+
+**Maximum depth: 2 levels of sub-menus**
+
+```
+Main Menu (Level 0)
+  └─ Option with items (opens Sub-menu Level 1)
+      └─ Option with items (opens Sub-menu Level 2)
+          └─ Options here CANNOT have items (max depth reached)
+```
+
+This limit ensures good UX and prevents overly complex menu structures.
 
 ### Sub-menu Behavior
 

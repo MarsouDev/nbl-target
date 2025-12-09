@@ -3,47 +3,44 @@ Registry = {
     localEntities = {},
     models = {},
     globalTypes = {},
+    
     byName = {},
     byResource = {},
+    
     nextId = 1,
+    subItemNextId = 10000,
+    
     enabled = true,
     activeSubItems = {},
-    subItemNextId = 10000,
     subItemIdMap = {}
 }
 
 local function GenerateId()
     local id = Registry.nextId
-    Registry.nextId = Registry.nextId + 1
+    Registry.nextId = id + 1
     return id
 end
 
 local function GenerateSubItemId()
     local id = Registry.subItemNextId
-    Registry.subItemNextId = Registry.subItemNextId + 1
+    Registry.subItemNextId = id + 1
     return id
 end
 
 local function GetSourceResource()
-    local invokingResource = GetInvokingResource()
-    if invokingResource then
-        return invokingResource
-    end
-    return GetCurrentResourceName()
+    return GetInvokingResource() or GetCurrentResourceName()
 end
 
 local function NormalizeModels(models)
-    if type(models) == "table" then
+    local modelType = type(models)
+    
+    if modelType == "table" then
         local result = {}
-        for _, model in ipairs(models) do
-            if type(model) == "string" then
-                result[#result + 1] = GetHashKey(model)
-            else
-                result[#result + 1] = model
-            end
+        for i, model in ipairs(models) do
+            result[i] = type(model) == "string" and GetHashKey(model) or model
         end
         return result
-    elseif type(models) == "string" then
+    elseif modelType == "string" then
         return { GetHashKey(models) }
     else
         return { models }
@@ -53,95 +50,62 @@ end
 local function NormalizeEntities(entities)
     if type(entities) == "table" and not entities.label then
         return entities
-    else
-        return { entities }
     end
+    return { entities }
 end
 
-local function CreateHandler(ids, registryType, storage)
+local function CreateHandler(ids, registryType)
     local handler = {
         ids = type(ids) == "table" and ids or { ids },
         registryType = registryType
     }
     
+    local function UpdateEntries(self, key, value)
+        for _, id in ipairs(self.ids) do
+            local entry = Registry:GetById(id)
+            if entry then
+                entry[key] = value
+            end
+        end
+        return self
+    end
+    
     function handler:remove()
-        local count = 0
+        local removed = 0
         for _, id in ipairs(self.ids) do
             if Registry:RemoveById(id) then
-                count = count + 1
+                removed = removed + 1
             end
         end
-        return count > 0
+        return removed > 0
     end
     
-    function handler:setLabel(newLabel)
-        for _, id in ipairs(self.ids) do
-            local entry = Registry:GetById(id)
-            if entry then
-                entry.label = newLabel
-            end
-        end
-        return self
+    function handler:setLabel(label)
+        return UpdateEntries(self, "label", label)
     end
     
-    function handler:setIcon(newIcon)
-        for _, id in ipairs(self.ids) do
-            local entry = Registry:GetById(id)
-            if entry then
-                entry.icon = newIcon
-            end
-        end
-        return self
+    function handler:setIcon(icon)
+        return UpdateEntries(self, "icon", icon)
     end
     
     function handler:setEnabled(enabled)
-        for _, id in ipairs(self.ids) do
-            local entry = Registry:GetById(id)
-            if entry then
-                entry.enabled = enabled
-            end
-        end
-        return self
+        return UpdateEntries(self, "enabled", enabled)
     end
     
     function handler:setDistance(distance)
-        for _, id in ipairs(self.ids) do
-            local entry = Registry:GetById(id)
-            if entry then
-                entry.distance = distance
-            end
-        end
-        return self
+        return UpdateEntries(self, "distance", distance)
     end
     
     function handler:setCanInteract(fn)
-        for _, id in ipairs(self.ids) do
-            local entry = Registry:GetById(id)
-            if entry then
-                entry.canInteract = fn
-            end
-        end
-        return self
+        return UpdateEntries(self, "canInteract", fn)
     end
     
     function handler:setOnSelect(fn)
-        for _, id in ipairs(self.ids) do
-            local entry = Registry:GetById(id)
-            if entry then
-                entry.onSelect = fn
-            end
-        end
-        return self
+        return UpdateEntries(self, "onSelect", fn)
     end
     
     function handler:setOnCheck(fn)
-        for _, id in ipairs(self.ids) do
-            local entry = Registry:GetById(id)
-            if entry then
-                entry.onCheck = fn
-            end
-        end
-        return self
+        return UpdateEntries(self, "onCheck", fn)
     end
     
     function handler:setChecked(checked)
@@ -155,10 +119,7 @@ local function CreateHandler(ids, registryType, storage)
     end
     
     function handler:getId()
-        if #self.ids == 1 then
-            return self.ids[1]
-        end
-        return self.ids
+        return #self.ids == 1 and self.ids[1] or self.ids
     end
     
     return handler
@@ -172,10 +133,12 @@ local function CreateEntry(id, baseData, options)
     
     if hasCheckbox and hasItems then
         if Config.Debug.enabled then
-            print("^3[NBL-Target]^7 Warning: Option '" .. (options.label or "unknown") .. "' has both checkbox and items. Items will be ignored.")
+            print("^3[NBL-Target]^7 Warning: '" .. (options.label or "unknown") .. "' has both checkbox and items. Items ignored.")
         end
-        options.items = nil
+        hasItems = false
     end
+    
+    local resource = options.resource or GetSourceResource()
     
     local entry = {
         id = id,
@@ -183,6 +146,9 @@ local function CreateEntry(id, baseData, options)
         name = options.name,
         icon = options.icon or "fas fa-hand-pointer",
         distance = options.distance or Config.Target.defaultDistance,
+        enabled = options.enabled ~= false,
+        shouldClose = options.shouldClose or false,
+        resource = resource,
         canInteract = options.canInteract,
         onSelect = options.onSelect,
         onCheck = options.onCheck,
@@ -192,43 +158,49 @@ local function CreateEntry(id, baseData, options)
         event = options.event,
         serverEvent = options.serverEvent,
         command = options.command,
-        items = options.items,
-        enabled = options.enabled ~= false,
-        shouldClose = options.shouldClose or false,
-        resource = options.resource or GetSourceResource()
+        items = hasItems and options.items or nil
     }
     
-    for k, v in pairs(baseData) do
-        entry[k] = v
+    for key, value in pairs(baseData) do
+        entry[key] = value
     end
     
     if entry.name then
         Registry.byName[entry.name] = entry
     end
     
-    if entry.resource then
-        if not Registry.byResource[entry.resource] then
-            Registry.byResource[entry.resource] = {}
-        end
-        Registry.byResource[entry.resource][id] = entry
+    if not Registry.byResource[resource] then
+        Registry.byResource[resource] = {}
     end
+    Registry.byResource[resource][id] = entry
     
     return entry
 end
 
 local function RemoveEntry(storage, id)
-    if storage[id] then
-        local entry = storage[id]
-        if entry.name then
-            Registry.byName[entry.name] = nil
-        end
-        if entry.resource and Registry.byResource[entry.resource] then
-            Registry.byResource[entry.resource][id] = nil
-        end
-        storage[id] = nil
-        return true
+    local entry = storage[id]
+    if not entry then return false end
+    
+    if entry.name then
+        Registry.byName[entry.name] = nil
     end
-    return false
+    
+    if entry.resource and Registry.byResource[entry.resource] then
+        Registry.byResource[entry.resource][id] = nil
+    end
+    
+    storage[id] = nil
+    return true
+end
+
+local function GetStorageByType(registryType)
+    local storageMap = {
+        entity = Registry.entities,
+        localEntity = Registry.localEntities,
+        model = Registry.models,
+        global = Registry.globalTypes
+    }
+    return storageMap[registryType]
 end
 
 function Registry:Enable()
@@ -246,7 +218,7 @@ end
 function Registry:AddEntity(entities, options)
     if not entities then
         if Config.Debug.enabled then
-            print("^1[NBL-Target]^7 AddEntity: Invalid entity/entities")
+            print("^1[NBL-Target]^7 AddEntity: Invalid entity")
         end
         return nil
     end
@@ -257,12 +229,7 @@ function Registry:AddEntity(entities, options)
     for _, entity in ipairs(normalizedEntities) do
         if entity and entity ~= 0 then
             local id = GenerateId()
-            local entry = CreateEntry(id, {
-                entity = entity,
-                registryType = "entity"
-            }, options)
-            
-            self.entities[id] = entry
+            self.entities[id] = CreateEntry(id, { entity = entity, registryType = "entity" }, options)
             ids[#ids + 1] = id
         end
     end
@@ -274,13 +241,13 @@ function Registry:AddEntity(entities, options)
         return nil
     end
     
-    return CreateHandler(ids, "entity", self.entities)
+    return CreateHandler(ids, "entity")
 end
 
 function Registry:AddLocalEntity(entities, options)
     if not entities then
         if Config.Debug.enabled then
-            print("^1[NBL-Target]^7 AddLocalEntity: Invalid entity/entities")
+            print("^1[NBL-Target]^7 AddLocalEntity: Invalid entity")
         end
         return nil
     end
@@ -291,12 +258,7 @@ function Registry:AddLocalEntity(entities, options)
     for _, entity in ipairs(normalizedEntities) do
         if entity and entity ~= 0 then
             local id = GenerateId()
-            local entry = CreateEntry(id, {
-                entity = entity,
-                registryType = "localEntity"
-            }, options)
-            
-            self.localEntities[id] = entry
+            self.localEntities[id] = CreateEntry(id, { entity = entity, registryType = "localEntity" }, options)
             ids[#ids + 1] = id
         end
     end
@@ -308,13 +270,13 @@ function Registry:AddLocalEntity(entities, options)
         return nil
     end
     
-    return CreateHandler(ids, "localEntity", self.localEntities)
+    return CreateHandler(ids, "localEntity")
 end
 
 function Registry:AddModel(models, options)
     if not models then
         if Config.Debug.enabled then
-            print("^1[NBL-Target]^7 AddModel: Invalid model(s)")
+            print("^1[NBL-Target]^7 AddModel: Invalid model")
         end
         return nil
     end
@@ -324,156 +286,76 @@ function Registry:AddModel(models, options)
     
     for _, modelHash in ipairs(normalizedModels) do
         local id = GenerateId()
-        local entry = CreateEntry(id, {
-            model = modelHash,
-            registryType = "model"
-        }, options)
-        
-        self.models[id] = entry
+        self.models[id] = CreateEntry(id, { model = modelHash, registryType = "model" }, options)
         ids[#ids + 1] = id
     end
     
-    return CreateHandler(ids, "model", self.models)
+    return CreateHandler(ids, "model")
 end
 
 local function IsOptionsArray(options)
     if type(options) ~= "table" then return false end
-    if options[1] and type(options[1]) == "table" then
-        return options[1].label ~= nil or options[1].name ~= nil or options[1].icon ~= nil or options[1].onSelect ~= nil
-    end
-    return false
+    local first = options[1]
+    return first and type(first) == "table" and (first.label or first.name or first.icon or first.onSelect)
 end
 
 function Registry:AddGlobalType(entityType, options)
+    local ids = {}
+    local baseData = { entityType = entityType, registryType = "global" }
+    
     if IsOptionsArray(options) then
-        local ids = {}
         for _, opt in ipairs(options) do
             local id = GenerateId()
-            local entry = CreateEntry(id, {
-                entityType = entityType,
-                registryType = "global"
-            }, opt)
-            
-            self.globalTypes[id] = entry
+            self.globalTypes[id] = CreateEntry(id, baseData, opt)
             ids[#ids + 1] = id
         end
-        return CreateHandler(ids, "global", self.globalTypes)
     else
         local id = GenerateId()
-        local entry = CreateEntry(id, {
-            entityType = entityType,
-            registryType = "global"
-        }, options)
-        
-        self.globalTypes[id] = entry
-        return CreateHandler(id, "global", self.globalTypes)
+        self.globalTypes[id] = CreateEntry(id, baseData, options)
+        ids[#ids + 1] = id
     end
+    
+    return CreateHandler(ids, "global")
 end
 
-function Registry:AddGlobalVehicle(options)
-    return self:AddGlobalType("vehicle", options)
-end
+function Registry:AddGlobalVehicle(options) return self:AddGlobalType("vehicle", options) end
+function Registry:AddGlobalPed(options) return self:AddGlobalType("ped", options) end
+function Registry:AddGlobalPlayer(options) return self:AddGlobalType("player", options) end
+function Registry:AddGlobalSelf(options) return self:AddGlobalType("self", options) end
+function Registry:AddGlobalObject(options) return self:AddGlobalType("object", options) end
+function Registry:AddGlobalOption(entityType, options) return self:AddGlobalType(entityType, options) end
 
-function Registry:AddGlobalPed(options)
-    return self:AddGlobalType("ped", options)
-end
-
-function Registry:AddGlobalPlayer(options)
-    return self:AddGlobalType("player", options)
-end
-
-function Registry:AddGlobalSelf(options)
-    return self:AddGlobalType("self", options)
-end
-
-function Registry:AddGlobalObject(options)
-    return self:AddGlobalType("object", options)
-end
-
-function Registry:AddGlobalOption(entityType, options)
-    return self:AddGlobalType(entityType, options)
-end
-
-function Registry:RemoveEntity(id)
-    return RemoveEntry(self.entities, id)
-end
-
-function Registry:RemoveLocalEntity(id)
-    return RemoveEntry(self.localEntities, id)
-end
-
-function Registry:RemoveModel(id)
-    return RemoveEntry(self.models, id)
-end
-
-function Registry:RemoveGlobalType(id)
-    return RemoveEntry(self.globalTypes, id)
-end
-
-function Registry:RemoveGlobalOption(id)
-    return self:RemoveGlobalType(id)
-end
-
-function Registry:RemoveGlobalVehicle(id)
-    return self:RemoveGlobalType(id)
-end
-
-function Registry:RemoveGlobalPed(id)
-    return self:RemoveGlobalType(id)
-end
-
-function Registry:RemoveGlobalPlayer(id)
-    return self:RemoveGlobalType(id)
-end
-
-function Registry:RemoveGlobalObject(id)
-    return self:RemoveGlobalType(id)
-end
+function Registry:RemoveEntity(id) return RemoveEntry(self.entities, id) end
+function Registry:RemoveLocalEntity(id) return RemoveEntry(self.localEntities, id) end
+function Registry:RemoveModel(id) return RemoveEntry(self.models, id) end
+function Registry:RemoveGlobalType(id) return RemoveEntry(self.globalTypes, id) end
+function Registry:RemoveGlobalOption(id) return self:RemoveGlobalType(id) end
+function Registry:RemoveGlobalVehicle(id) return self:RemoveGlobalType(id) end
+function Registry:RemoveGlobalPed(id) return self:RemoveGlobalType(id) end
+function Registry:RemoveGlobalPlayer(id) return self:RemoveGlobalType(id) end
+function Registry:RemoveGlobalObject(id) return self:RemoveGlobalType(id) end
 
 function Registry:RemoveByName(name)
     local entry = self.byName[name]
     if not entry then return false end
     
-    local storage
-    if entry.registryType == "entity" then
-        storage = self.entities
-    elseif entry.registryType == "localEntity" then
-        storage = self.localEntities
-    elseif entry.registryType == "model" then
-        storage = self.models
-    elseif entry.registryType == "global" then
-        storage = self.globalTypes
-    end
-    
-    if storage then
-        return RemoveEntry(storage, entry.id)
-    end
-    
-    return false
+    local storage = GetStorageByType(entry.registryType)
+    return storage and RemoveEntry(storage, entry.id) or false
 end
 
 function Registry:RemoveByResource(resourceName)
-    if not self.byResource[resourceName] then return 0 end
+    local resourceEntries = self.byResource[resourceName]
+    if not resourceEntries then return 0 end
     
     local count = 0
-    local toRemove = {}
     
-    for id, entry in pairs(self.byResource[resourceName]) do
-        toRemove[#toRemove + 1] = {id = id, type = entry.registryType}
+    local toRemove = {}
+    for id, entry in pairs(resourceEntries) do
+        toRemove[#toRemove + 1] = { id = id, registryType = entry.registryType }
     end
     
     for _, item in ipairs(toRemove) do
-        local storage
-        if item.type == "entity" then
-            storage = self.entities
-        elseif item.type == "localEntity" then
-            storage = self.localEntities
-        elseif item.type == "model" then
-            storage = self.models
-        elseif item.type == "global" then
-            storage = self.globalTypes
-        end
-        
+        local storage = GetStorageByType(item.registryType)
         if storage and RemoveEntry(storage, item.id) then
             count = count + 1
         end
@@ -482,7 +364,7 @@ function Registry:RemoveByResource(resourceName)
     self.byResource[resourceName] = nil
     
     if Config.Debug.enabled and count > 0 then
-        print("^3[NBL-Target]^7 Removed " .. count .. " entries from resource: " .. resourceName)
+        print("^3[NBL-Target]^7 Removed " .. count .. " entries from: " .. resourceName)
     end
     
     return count
@@ -491,17 +373,14 @@ end
 function Registry:CleanupInvalidEntities()
     local removed = 0
     
-    for id, entry in pairs(self.entities) do
-        if entry.entity and not DoesEntityExist(entry.entity) then
-            RemoveEntry(self.entities, id)
-            removed = removed + 1
-        end
-    end
-    
-    for id, entry in pairs(self.localEntities) do
-        if entry.entity and not DoesEntityExist(entry.entity) then
-            RemoveEntry(self.localEntities, id)
-            removed = removed + 1
+    for _, storage in ipairs({ self.entities, self.localEntities }) do
+        for id, entry in pairs(storage) do
+            if entry.entity then
+                if GetEntityType(entry.entity) == 0 then
+                    RemoveEntry(storage, id)
+                    removed = removed + 1
+                end
+            end
         end
     end
     
@@ -511,15 +390,11 @@ end
 function Registry:GetEntityRegistrations(entity)
     local results = {}
     
-    for _, entry in pairs(self.entities) do
-        if entry.entity == entity and entry.enabled then
-            results[#results + 1] = entry
-        end
-    end
-    
-    for _, entry in pairs(self.localEntities) do
-        if entry.entity == entity and entry.enabled then
-            results[#results + 1] = entry
+    for _, storage in ipairs({ self.entities, self.localEntities }) do
+        for _, entry in pairs(storage) do
+            if entry.entity == entity and entry.enabled then
+                results[#results + 1] = entry
+            end
         end
     end
     
@@ -528,12 +403,12 @@ end
 
 function Registry:GetModelRegistrations(entity)
     if not entity or entity == 0 then return {} end
+    if GetEntityType(entity) == 0 then return {} end
     
     local entityModel = GetEntityModel(entity)
-    if not entityModel then return {} end
+    if not entityModel or entityModel == 0 then return {} end
     
     local results = {}
-    
     for _, entry in pairs(self.models) do
         if entry.model == entityModel and entry.enabled then
             results[#results + 1] = entry
@@ -582,10 +457,7 @@ function Registry:CanInteract(registration, entity, worldPos, bone)
     end
     
     if registration.canInteract then
-        local success, result = pcall(
-            registration.canInteract,
-            entity, distance, worldPos, registration.name, bone
-        )
+        local success, result = pcall(registration.canInteract, entity, distance, worldPos, registration.name, bone)
         
         if not success then
             if Config.Debug.enabled then
@@ -604,7 +476,7 @@ function Registry:HasAvailableOptions(entity, entityType, worldPos)
     local registrations = self:GetAllRegistrations(entity, entityType)
     
     for _, reg in ipairs(registrations) do
-        if self:CanInteract(reg, entity, worldPos, nil) then
+        if self:CanInteract(reg, entity, worldPos) then
             return true
         end
     end
@@ -613,7 +485,7 @@ function Registry:HasAvailableOptions(entity, entityType, worldPos)
 end
 
 function Registry:GetSubItemId(parentId, itemName, itemIndex)
-    local key = parentId .. "_" .. (itemName or "idx_" .. itemIndex)
+    local key = parentId .. "_" .. (itemName or ("idx_" .. itemIndex))
     
     if not self.subItemIdMap[key] then
         self.subItemIdMap[key] = GenerateSubItemId()
@@ -622,48 +494,37 @@ function Registry:GetSubItemId(parentId, itemName, itemIndex)
     return self.subItemIdMap[key]
 end
 
-function Registry:EvaluateChecked(checkedValue, entity, worldPos)
-    if checkedValue == nil then
-        return false
-    end
+function Registry:EvaluateChecked(checkedValue)
+    if checkedValue == nil then return false end
     
     local valueType = type(checkedValue)
     
     if valueType == "function" or valueType == "table" then
-        local ok, result = pcall(checkedValue)
-        if ok then
-            return result == true
-        end
-        return false
+        local success, result = pcall(checkedValue)
+        return success and result == true
     end
     
     return checkedValue == true
 end
 
-function Registry:ProcessSubItems(items, entity, worldPos, parentId)
+function Registry:ProcessSubItems(items, entity, worldPos, parentId, depth)
     if not items or #items == 0 then return nil end
     
+    depth = depth or 1
+    local MAX_DEPTH = 2
+    local distance = Entity:GetDistance(entity, worldPos)
     local filtered = {}
     
     for idx, item in ipairs(items) do
         local canShow = true
         
         if item.canInteract then
-            local distance = Entity:GetDistance(entity, worldPos)
-            local ok, result = pcall(item.canInteract, entity, distance, worldPos, item.name)
-            
-            if not ok then
-                canShow = false
-            else
-                canShow = result == true
-            end
+            local success, result = pcall(item.canInteract, entity, distance, worldPos, item.name)
+            canShow = success and result == true
         end
         
-        if item.distance then
-            local distance = Entity:GetDistance(entity, worldPos)
-            if distance > item.distance then
-                canShow = false
-            end
+        if canShow and item.distance and distance > item.distance then
+            canShow = false
         end
         
         if canShow then
@@ -675,9 +536,8 @@ function Registry:ProcessSubItems(items, entity, worldPos, parentId)
                 hasItems = false
             end
             
-            local checkedValue = false
-            if hasCheckbox then
-                checkedValue = self:EvaluateChecked(item.checked, entity, worldPos)
+            if depth >= MAX_DEPTH then
+                hasItems = false
             end
             
             self.activeSubItems[subItemId] = {
@@ -687,6 +547,7 @@ function Registry:ProcessSubItems(items, entity, worldPos, parentId)
                 icon = item.icon,
                 name = item.name,
                 distance = item.distance,
+                canInteract = item.canInteract,
                 onSelect = item.onSelect,
                 onCheck = item.onCheck,
                 checkbox = hasCheckbox,
@@ -699,10 +560,7 @@ function Registry:ProcessSubItems(items, entity, worldPos, parentId)
                 originalItems = hasItems and item.items or nil
             }
             
-            local nestedItems = nil
-            if hasItems then
-                nestedItems = self:ProcessSubItems(item.items, entity, worldPos, subItemId)
-            end
+            local nestedItems = hasItems and self:ProcessSubItems(item.items, entity, worldPos, subItemId, depth + 1) or nil
             
             filtered[#filtered + 1] = {
                 id = subItemId,
@@ -710,15 +568,14 @@ function Registry:ProcessSubItems(items, entity, worldPos, parentId)
                 icon = item.icon,
                 name = item.name,
                 checkbox = hasCheckbox,
-                checked = checkedValue,
+                checked = hasCheckbox and self:EvaluateChecked(item.checked) or false,
                 items = nestedItems,
                 shouldClose = item.shouldClose
             }
         end
     end
     
-    if #filtered == 0 then return nil end
-    return filtered
+    return #filtered > 0 and filtered or nil
 end
 
 function Registry:GetAvailableOptions(entity, entityType, worldPos)
@@ -726,15 +583,13 @@ function Registry:GetAvailableOptions(entity, entityType, worldPos)
     local available = {}
     
     for _, reg in ipairs(registrations) do
-        if self:CanInteract(reg, entity, worldPos, nil) then
+        if self:CanInteract(reg, entity, worldPos) then
             local hasCheckbox = reg.checkbox == true
+            
             local processedItems = nil
-            
             if not hasCheckbox and reg.items then
-                processedItems = self:ProcessSubItems(reg.items, entity, worldPos, reg.id)
+                processedItems = self:ProcessSubItems(reg.items, entity, worldPos, reg.id, 1)
             end
-            
-            local checkedValue = self:EvaluateChecked(reg.checked, entity, worldPos)
             
             available[#available + 1] = {
                 id = reg.id,
@@ -742,7 +597,7 @@ function Registry:GetAvailableOptions(entity, entityType, worldPos)
                 icon = reg.icon,
                 name = reg.name,
                 checkbox = hasCheckbox,
-                checked = checkedValue,
+                checked = hasCheckbox and self:EvaluateChecked(reg.checked) or false,
                 items = processedItems,
                 shouldClose = reg.shouldClose
             }
@@ -756,27 +611,37 @@ function Registry:ExecuteAction(registration, entity, worldPos)
     if not registration then return end
     
     if registration.export then
-        local dotIndex = string.find(registration.export, "%.")
+        local dotIndex = registration.export:find("%.")
         if dotIndex then
-            local resourceName = string.sub(registration.export, 1, dotIndex - 1)
-            local exportName = string.sub(registration.export, dotIndex + 1)
+            local resourceName = registration.export:sub(1, dotIndex - 1)
+            local exportName = registration.export:sub(dotIndex + 1)
             
             if exports[resourceName] and exports[resourceName][exportName] then
-                local success, err = pcall(function()
-                    exports[resourceName][exportName](entity, worldPos, registration)
-                end)
+                local success, err = pcall(exports[resourceName][exportName], entity, worldPos, registration)
                 if not success and Config.Debug.enabled then
                     print("^1[NBL-Target]^7 Export error: " .. tostring(err))
                 end
             end
         end
-    elseif registration.event then
+        return
+    end
+    
+    if registration.event then
         TriggerEvent(registration.event, entity, worldPos, registration)
-    elseif registration.serverEvent then
+        return
+    end
+    
+    if registration.serverEvent then
         TriggerServerEvent(registration.serverEvent, entity, worldPos, registration)
-    elseif registration.command then
+        return
+    end
+    
+    if registration.command then
         ExecuteCommand(registration.command)
-    elseif registration.onSelect then
+        return
+    end
+    
+    if registration.onSelect then
         local success, err = pcall(registration.onSelect, entity, worldPos, registration)
         if not success and Config.Debug.enabled then
             print("^1[NBL-Target]^7 onSelect error: " .. tostring(err))
@@ -784,25 +649,23 @@ function Registry:ExecuteAction(registration, entity, worldPos)
     end
 end
 
+local function FindRegistration(optionId)
+    return Registry.entities[optionId]
+        or Registry.localEntities[optionId]
+        or Registry.models[optionId]
+        or Registry.globalTypes[optionId]
+        or Registry.activeSubItems[optionId]
+end
+
 function Registry:OnSelect(optionId, entity, worldPos)
-    local registration = self.entities[optionId]
-        or self.localEntities[optionId]
-        or self.models[optionId]
-        or self.globalTypes[optionId]
-        or self.activeSubItems[optionId]
-    
+    local registration = FindRegistration(optionId)
     if registration then
         self:ExecuteAction(registration, entity, worldPos)
     end
 end
 
 function Registry:OnCheck(optionId, entity, worldPos, newState)
-    local registration = self.entities[optionId]
-        or self.localEntities[optionId]
-        or self.models[optionId]
-        or self.globalTypes[optionId]
-        or self.activeSubItems[optionId]
-    
+    local registration = FindRegistration(optionId)
     if not registration then return end
     
     if registration.onCheck then
@@ -830,26 +693,26 @@ function Registry:GetById(id)
         or self.globalTypes[id]
 end
 
+function Registry:GetRegisteredModels()
+    local models = {}
+    local seen = {}
+    
+    for _, entry in pairs(self.models) do
+        if entry.model and not seen[entry.model] then
+            seen[entry.model] = true
+            models[#models + 1] = entry.model
+        end
+    end
+    
+    return models
+end
+
 function Registry:RemoveById(id)
     local entry = self:GetById(id)
     if not entry then return false end
     
-    local storage
-    if entry.registryType == "entity" then
-        storage = self.entities
-    elseif entry.registryType == "localEntity" then
-        storage = self.localEntities
-    elseif entry.registryType == "model" then
-        storage = self.models
-    elseif entry.registryType == "global" then
-        storage = self.globalTypes
-    end
-    
-    if storage then
-        return RemoveEntry(storage, id)
-    end
-    
-    return false
+    local storage = GetStorageByType(entry.registryType)
+    return storage and RemoveEntry(storage, id) or false
 end
 
 AddEventHandler('onResourceStop', function(resourceName)

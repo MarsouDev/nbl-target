@@ -22,16 +22,11 @@ function NUI:Open(options, screenPos, entity, entityType, worldPos)
     Visual:LockEntity(entity)
     
     local resX, resY = GetActiveScreenResolution()
-    local pixelX = screenPos.x * resX
-    local pixelY = screenPos.y * resY
     
     SendNUIMessage({
         action = "open",
         options = options,
-        position = {
-            x = pixelX,
-            y = pixelY
-        },
+        position = { x = screenPos.x * resX, y = screenPos.y * resY },
         scale = Config.Menu.scale
     })
     
@@ -53,9 +48,9 @@ function NUI:Close(clearSubItems)
     self.refreshPaused = false
     
     if entityToClean then
-        pcall(function()
+        if GetEntityType(entityToClean) ~= 0 then
             SetEntityDrawOutline(entityToClean, false)
-        end)
+        end
     end
     
     Visual:UnlockEntity()
@@ -65,42 +60,38 @@ function NUI:Close(clearSubItems)
         Registry:ClearActiveSubItems()
     end
     
-    SendNUIMessage({
-        action = "close"
-    })
-    
+    SendNUIMessage({ action = "close" })
     SetNuiFocus(false, false)
 end
 
 function NUI:HashOptions(options)
     if not options then return nil end
     
-    local hash = ""
-    for _, opt in ipairs(options) do
-        hash = hash .. tostring(opt.id) .. opt.label .. tostring(opt.checked or false)
+    local parts = {}
+    for i, opt in ipairs(options) do
+        parts[#parts + 1] = opt.id .. opt.label .. tostring(opt.checked or false)
+        
         if opt.items then
-            for _, sub in ipairs(opt.items) do
-                hash = hash .. tostring(sub.id) .. sub.label .. tostring(sub.checked or false)
+            for j, sub in ipairs(opt.items) do
+                parts[#parts + 1] = sub.id .. sub.label .. tostring(sub.checked or false)
             end
         end
     end
-    return hash
+    
+    return table.concat(parts)
 end
 
 function NUI:Refresh()
-    if not self.isOpen then return false end
-    if not self.currentEntity then return false end
+    if not self.isOpen or not self.currentEntity then
+        return false
+    end
     
-    if not DoesEntityExist(self.currentEntity) then
+    if GetEntityType(self.currentEntity) == 0 then
         self:Close()
         return false
     end
     
-    local options = Registry:GetAvailableOptions(
-        self.currentEntity,
-        self.currentEntityType,
-        self.currentWorldPos
-    )
+    local options = Registry:GetAvailableOptions(self.currentEntity, self.currentEntityType, self.currentWorldPos)
     
     if #options == 0 then
         self:Close()
@@ -108,61 +99,40 @@ function NUI:Refresh()
     end
     
     local newHash = self:HashOptions(options)
-    local hasChanges = newHash ~= self.lastOptionsHash
     
-    if hasChanges or self.refreshPaused then
+    if newHash ~= self.lastOptionsHash or self.refreshPaused then
         if not self.refreshPaused then
             self.lastOptionsHash = newHash
         end
-        SendNUIMessage({
-            action = "refresh",
-            options = options
-        })
+        SendNUIMessage({ action = "refresh", options = options })
     end
     
     return true
 end
 
-function NUI:PauseRefresh()
-    self.refreshPaused = true
-end
+function NUI:PauseRefresh() self.refreshPaused = true end
+function NUI:ResumeRefresh() self.refreshPaused = false end
 
-function NUI:ResumeRefresh()
-    self.refreshPaused = false
-end
-
-function NUI:IsOpen()
-    return self.isOpen
-end
-
-function NUI:GetCurrentEntity()
-    return self.currentEntity
-end
-
-function NUI:GetCurrentEntityType()
-    return self.currentEntityType
-end
-
-function NUI:GetCurrentWorldPos()
-    return self.currentWorldPos
-end
+function NUI:IsOpen() return self.isOpen end
+function NUI:GetCurrentEntity() return self.currentEntity end
+function NUI:GetCurrentEntityType() return self.currentEntityType end
+function NUI:GetCurrentWorldPos() return self.currentWorldPos end
 
 function NUI:GetTimeSinceOpen()
-    if not self.isOpen then return 0 end
-    return GetGameTimer() - self.openedAt
+    return self.isOpen and (GetGameTimer() - self.openedAt) or 0
 end
 
 function NUI:CheckDistance()
-    if not self.isOpen then return true end
-    if not self.currentEntity then return true end
+    if not self.isOpen or not self.currentEntity then
+        return true
+    end
     
-    if not DoesEntityExist(self.currentEntity) then
+    if GetEntityType(self.currentEntity) == 0 then
         self:Close()
         return false
     end
     
-    local playerPed = PlayerPedId()
-    local playerCoords = GetEntityCoords(playerPed)
+    local playerCoords = GetEntityCoords(PlayerPedId())
     local entityCoords = GetEntityCoords(self.currentEntity)
     local distance = #(playerCoords - entityCoords)
     
@@ -188,8 +158,6 @@ end)
 RegisterNUICallback("select", function(data, cb)
     cb("ok")
     
-    if not data.id then return end
-    
     local optionId = tonumber(data.id)
     if not optionId then return end
     
@@ -198,11 +166,9 @@ RegisterNUICallback("select", function(data, cb)
     local shouldClose = data.shouldClose
     
     NUI:Close(false)
-    
     Wait(10)
     
     Registry:OnSelect(optionId, entity, worldPos)
-    
     Registry:ClearActiveSubItems()
     
     if shouldClose then
@@ -210,7 +176,7 @@ RegisterNUICallback("select", function(data, cb)
     end
 end)
 
-RegisterNUICallback("close", function(data, cb)
+RegisterNUICallback("close", function(_, cb)
     NUI:Close()
     cb("ok")
 end)
@@ -224,12 +190,12 @@ RegisterNUICallback("hover", function(data, cb)
     cb("ok")
 end)
 
-RegisterNUICallback("submenuOpen", function(data, cb)
+RegisterNUICallback("submenuOpen", function(_, cb)
     NUI:PauseRefresh()
     cb("ok")
 end)
 
-RegisterNUICallback("submenuClose", function(data, cb)
+RegisterNUICallback("submenuClose", function(_, cb)
     NUI:ResumeRefresh()
     cb("ok")
 end)
@@ -237,14 +203,8 @@ end)
 RegisterNUICallback("check", function(data, cb)
     cb("ok")
     
-    if not data.id then return end
-    
     local optionId = tonumber(data.id)
     if not optionId then return end
     
-    local entity = NUI.currentEntity
-    local worldPos = NUI.currentWorldPos
-    local newState = data.checked == true
-    
-    Registry:OnCheck(optionId, entity, worldPos, newState)
+    Registry:OnCheck(optionId, NUI.currentEntity, NUI.currentWorldPos, data.checked == true)
 end)

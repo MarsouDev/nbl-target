@@ -1,57 +1,37 @@
-local OutlineTracker = {}
+Visual = {}
+
+local TrackedOutlines = {}
 local MarkerRotation = 0.0
 local CurrentEntity = nil
 local LockedEntity = nil
 local IsActive = false
 
-Visual = {}
+local DimensionsCache = {}
 
-local function SafeSetOutline(entity, enabled)
+local function SetOutline(entity, enabled)
     if not entity or entity == 0 then return false end
-    local success = pcall(function()
-        if DoesEntityExist(entity) then
-            SetEntityDrawOutline(entity, enabled)
-        end
-    end)
-    return success
-end
-
-local function SafeSetOutlineColor(r, g, b, a)
-    pcall(function()
-        SetEntityDrawOutlineColor(r, g, b, a)
-    end)
-end
-
-local function SafeGetEntityCoords(entity)
-    if not entity or entity == 0 then return nil end
-    local success, coords = pcall(function()
-        if DoesEntityExist(entity) then
-            return GetEntityCoords(entity)
-        end
-        return nil
-    end)
-    if success and coords then
-        return coords
-    end
-    return nil
+    if GetEntityType(entity) == 0 then return false end
+    
+    SetEntityDrawOutline(entity, enabled)
+    return true
 end
 
 local function GetEntityTopOffset(entity)
     if not entity or entity == 0 then return 1.0 end
+    if GetEntityType(entity) == 0 then return 1.0 end
     
-    local success, topOffset = pcall(function()
-        if not DoesEntityExist(entity) then return 1.0 end
-        
-        local model = GetEntityModel(entity)
-        if not model or model == 0 then return 1.0 end
-        
-        local min, max = GetModelDimensions(model)
-        if not min or not max then return 1.0 end
-        
-        return max.z > 0 and max.z or 1.0
-    end)
+    local model = GetEntityModel(entity)
+    if not model or model == 0 then return 1.0 end
     
-    return success and topOffset or 1.0
+    if DimensionsCache[model] then
+        return DimensionsCache[model]
+    end
+    
+    local _, max = GetModelDimensions(model)
+    local topOffset = (max and max.z > 0) and max.z or 1.0
+    
+    DimensionsCache[model] = topOffset
+    return topOffset
 end
 
 function Visual:SetActive(active)
@@ -60,25 +40,21 @@ end
 
 function Visual:IsEntityValid(entity)
     if not entity or entity == 0 then return false end
-    local success, exists = pcall(DoesEntityExist, entity)
-    return success and exists
+    return GetEntityType(entity) ~= 0
 end
 
 function Visual:GetEntityType(entity)
     if not self:IsEntityValid(entity) then return "unknown" end
     
-    local success, result = pcall(function()
-        if IsEntityAVehicle(entity) then
-            return "vehicle"
-        elseif IsEntityAPed(entity) then
-            return "ped"
-        elseif IsEntityAnObject(entity) then
-            return "object"
-        end
-        return "unknown"
-    end)
+    if IsEntityAVehicle(entity) then
+        return "vehicle"
+    elseif IsEntityAPed(entity) then
+        return "ped"
+    elseif IsEntityAnObject(entity) then
+        return "object"
+    end
     
-    return success and result or "unknown"
+    return "unknown"
 end
 
 function Visual:CanUseOutline(entity)
@@ -87,7 +63,7 @@ function Visual:CanUseOutline(entity)
     
     local playerPed = PlayerPedId()
     if entity == playerPed then
-        return Config.Outline.allowedTypes["self"] == true
+        return Config.Outline.allowedTypes.self == true
     end
     
     local entityType = self:GetEntityType(entity)
@@ -98,37 +74,36 @@ function Visual:CanUseMarker(entity)
     if not Config.Marker.enabled then return false end
     if not self:IsEntityValid(entity) then return false end
     
+    local allowedTypes = Config.Marker.allowedTypes
+    if not allowedTypes then return true end
+    
     local playerPed = PlayerPedId()
     if entity == playerPed then
-        return Config.Marker.allowedTypes and Config.Marker.allowedTypes["self"] == true
+        return allowedTypes.self == true
     end
     
     local entityType = self:GetEntityType(entity)
-    if not Config.Marker.allowedTypes then return true end
-    return Config.Marker.allowedTypes[entityType] == true
+    return allowedTypes[entityType] == true
 end
 
 function Visual:GetDistanceToEntity(entity)
     if not self:IsEntityValid(entity) then return math.huge end
     
-    local playerPed = PlayerPedId()
-    local playerCoords = GetEntityCoords(playerPed)
-    local entityCoords = SafeGetEntityCoords(entity)
-    
-    if not entityCoords then return math.huge end
+    local playerCoords = GetEntityCoords(PlayerPedId())
+    local entityCoords = GetEntityCoords(entity)
     
     return #(playerCoords - entityCoords)
 end
 
 function Visual:AddOutline(entity)
     if not entity or entity == 0 then return end
-    OutlineTracker[entity] = true
+    TrackedOutlines[entity] = true
 end
 
 function Visual:RemoveOutline(entity)
     if not entity or entity == 0 then return end
-    OutlineTracker[entity] = nil
-    SafeSetOutline(entity, false)
+    TrackedOutlines[entity] = nil
+    SetOutline(entity, false)
 end
 
 function Visual:DrawOutline(entity, color)
@@ -137,36 +112,34 @@ function Visual:DrawOutline(entity, color)
     if not self:CanUseOutline(entity) then return end
     
     local c = color or Config.Outline.color
-    SafeSetOutlineColor(c.r, c.g, c.b, c.a)
-    if SafeSetOutline(entity, true) then
+    SetEntityDrawOutlineColor(c.r, c.g, c.b, c.a)
+    
+    if SetOutline(entity, true) then
         self:AddOutline(entity)
     end
 end
 
 function Visual:ClearOutline(entity)
     if not entity or entity == 0 then return end
-    SafeSetOutline(entity, false)
-    OutlineTracker[entity] = nil
+    SetOutline(entity, false)
+    TrackedOutlines[entity] = nil
 end
 
 function Visual:ClearAllTracked()
-    for entity, _ in pairs(OutlineTracker) do
-        if entity and entity ~= 0 then
-            SafeSetOutline(entity, false)
-        end
+    for entity in pairs(TrackedOutlines) do
+        SetOutline(entity, false)
     end
-    OutlineTracker = {}
+    TrackedOutlines = {}
     
-    if CurrentEntity and CurrentEntity ~= 0 then
-        SafeSetOutline(CurrentEntity, false)
-    end
-    
-    if LockedEntity and LockedEntity ~= 0 then
-        SafeSetOutline(LockedEntity, false)
+    if CurrentEntity then
+        SetOutline(CurrentEntity, false)
+        CurrentEntity = nil
     end
     
-    CurrentEntity = nil
-    LockedEntity = nil
+    if LockedEntity then
+        SetOutline(LockedEntity, false)
+        LockedEntity = nil
+    end
 end
 
 function Visual:DrawMarker(entity, color)
@@ -174,42 +147,36 @@ function Visual:DrawMarker(entity, color)
     if not self:IsEntityValid(entity) then return end
     if not self:CanUseMarker(entity) then return end
     
-    local entityCoords = SafeGetEntityCoords(entity)
-    if not entityCoords then return end
-    
+    local entityCoords = GetEntityCoords(entity)
     local c = color or Config.Marker.color
     local scale = Config.Marker.scale
+    local markerConfig = Config.Marker
     
     local topOffset = GetEntityTopOffset(entity)
-    local markerZ = entityCoords.z + topOffset + Config.Marker.height
+    local markerZ = entityCoords.z + topOffset + markerConfig.height
     
-    if Config.Marker.bob then
-        markerZ = markerZ + (math.sin(GetGameTimer() / 200) * 0.05)
+    if markerConfig.bob then
+        markerZ = markerZ + (math.sin(GetGameTimer() * 0.005) * 0.05)
     end
     
-    if Config.Marker.rotate then
-        MarkerRotation = MarkerRotation + 1.0
-        if MarkerRotation >= 360.0 then
-            MarkerRotation = 0.0
-        end
+    if markerConfig.rotate then
+        MarkerRotation = (MarkerRotation + 1.0) % 360.0
     end
     
-    pcall(function()
-        DrawMarker(
-            Config.Marker.type,
-            entityCoords.x, entityCoords.y, markerZ,
-            0.0, 0.0, 0.0,
-            0.0, 0.0, MarkerRotation,
-            scale, scale, scale,
-            c.r, c.g, c.b, c.a,
-            Config.Marker.bob,
-            true,
-            2,
-            Config.Marker.rotate,
-            nil, nil,
-            false
-        )
-    end)
+    DrawMarker(
+        markerConfig.type,
+        entityCoords.x, entityCoords.y, markerZ,
+        0.0, 0.0, 0.0,
+        0.0, 0.0, MarkerRotation,
+        scale, scale, scale,
+        c.r, c.g, c.b, c.a,
+        markerConfig.bob,
+        true,
+        2,
+        markerConfig.rotate,
+        nil, nil,
+        false
+    )
 end
 
 function Visual:HighlightEntity(entity)
@@ -232,7 +199,7 @@ function Visual:LockEntity(entity)
 end
 
 function Visual:UnlockEntity()
-    if LockedEntity and LockedEntity ~= 0 then
+    if LockedEntity then
         self:ClearOutline(LockedEntity)
     end
     LockedEntity = nil
@@ -248,6 +215,7 @@ end
 
 function Visual:DrawLockedEntity()
     if not LockedEntity then return end
+    
     if not self:IsEntityValid(LockedEntity) then
         self:UnlockEntity()
         return
@@ -272,13 +240,40 @@ function Visual:ProcessHover(cursorPos)
         return nil
     end
     
-    local hit, worldPos, _, entity, _ = Raycast:FromScreen(cursorPos, Config.Target.maxDistance)
+    local hit, worldPos, _, entity = Raycast:FromScreen(cursorPos, Config.Target.maxDistance)
     
-    if not hit or not self:IsEntityValid(entity) then
+    if not hit then
         if CurrentEntity then
             self:ClearOutline(CurrentEntity)
             CurrentEntity = nil
         end
+        return nil
+    end
+    
+    if not self:IsEntityValid(entity) then
+        if CurrentEntity then
+            self:ClearOutline(CurrentEntity)
+            CurrentEntity = nil
+        end
+        
+        local playerCoords = GetEntityCoords(PlayerPedId())
+        local distance = #(playerCoords - worldPos)
+        
+        if distance <= Config.Target.maxDistance then
+            local entityType = Entity:GetType(0, worldPos)
+            local hasOptions = Registry:HasAvailableOptions(0, entityType, worldPos)
+            
+            if hasOptions then
+                return {
+                    entity = 0,
+                    entityType = entityType,
+                    worldPos = worldPos,
+                    distance = distance,
+                    hasOptions = true
+                }
+            end
+        end
+        
         return nil
     end
     
@@ -291,8 +286,6 @@ function Visual:ProcessHover(cursorPos)
         return nil
     end
     
-    local entityType = Entity:GetType(entity)
-    
     local distance = self:GetDistanceToEntity(entity)
     if distance > Config.Target.maxDistance then
         if CurrentEntity then
@@ -301,6 +294,8 @@ function Visual:ProcessHover(cursorPos)
         end
         return nil
     end
+    
+    local entityType = Entity:GetType(entity)
     
     self:HighlightEntity(entity)
     
@@ -316,34 +311,28 @@ function Visual:ProcessHover(cursorPos)
 end
 
 CreateThread(function()
-    local lastCleanup = 0
-    
     while true do
-        Wait(100)
-        
-        if not IsActive then
-            local now = GetGameTimer()
-            
-            if now - lastCleanup > 200 then
-                for entity, _ in pairs(OutlineTracker) do
-                    if entity and entity ~= 0 then
-                        SafeSetOutline(entity, false)
-                    end
+        if IsActive then
+            Wait(500)
+        else
+            if next(TrackedOutlines) or CurrentEntity or LockedEntity then
+                for entity in pairs(TrackedOutlines) do
+                    SetOutline(entity, false)
                 end
-                OutlineTracker = {}
+                TrackedOutlines = {}
                 
-                if CurrentEntity and CurrentEntity ~= 0 then
-                    SafeSetOutline(CurrentEntity, false)
+                if CurrentEntity then
+                    SetOutline(CurrentEntity, false)
                     CurrentEntity = nil
                 end
                 
-                if LockedEntity and LockedEntity ~= 0 then
-                    SafeSetOutline(LockedEntity, false)
+                if LockedEntity then
+                    SetOutline(LockedEntity, false)
                     LockedEntity = nil
                 end
-                
-                lastCleanup = now
             end
+            
+            Wait(500)
         end
     end
 end)

@@ -6,18 +6,18 @@ local State = {
 }
 
 local CLICK_COOLDOWN = 100
+local CENTER_SCREEN = vector2(0.5, 0.5)
 
 local function Activate()
     if State.active then return end
     
     State.active = true
-    State.cursorPos = vector2(0.5, 0.5)
+    State.cursorPos = CENTER_SCREEN
     SetCursorLocation(0.5, 0.5)
-    
     Visual:SetActive(true)
     
     if Config.Debug.enabled then
-        print("^2[NBL-Target]^7 Targeting mode activated")
+        print("^2[NBL-Target]^7 Activated")
     end
 end
 
@@ -27,29 +27,28 @@ local function Deactivate()
     State.active = false
     Visual:SetActive(false)
     
-    local entityToClean = nil
-    if State.lastHover and State.lastHover.entity then
-        entityToClean = State.lastHover.entity
-    end
+    local entityToClean = State.lastHover and State.lastHover.entity
     
     NUI:Close()
     Visual:ClearAll()
     
     if entityToClean and entityToClean ~= 0 then
-        SetEntityDrawOutline(entityToClean, false)
+        if GetEntityType(entityToClean) ~= 0 then
+            SetEntityDrawOutline(entityToClean, false)
+        end
     end
     
     State.lastHover = nil
     SetMouseCursorSprite(0)
     
     if Config.Debug.enabled then
-        print("^2[NBL-Target]^7 Targeting mode deactivated")
+        print("^2[NBL-Target]^7 Deactivated")
     end
 end
 
 local function DisableControls()
-    for _, control in ipairs(Config.DisabledControls) do
-        DisableControlAction(0, control, true)
+    for i = 1, #Config.DisabledControls do
+        DisableControlAction(0, Config.DisabledControls[i], true)
     end
 end
 
@@ -58,11 +57,7 @@ local function GetCursorPosition()
 end
 
 local function CanClick()
-    local now = GetGameTimer()
-    if now - State.lastClickTime < CLICK_COOLDOWN then
-        return false
-    end
-    return true
+    return GetGameTimer() - State.lastClickTime >= CLICK_COOLDOWN
 end
 
 local function RegisterClick()
@@ -73,7 +68,6 @@ CreateThread(function()
     while true do
         if State.active then
             Wait(0)
-            
             DisableControls()
             
             if NUI:IsOpen() then
@@ -82,63 +76,37 @@ CreateThread(function()
             else
                 SetMouseCursorActiveThisFrame()
                 State.cursorPos = GetCursorPosition()
-                local hoverData = Visual:ProcessHover(State.cursorPos)
-                State.lastHover = hoverData
+                State.lastHover = Visual:ProcessHover(State.cursorPos)
                 
-                if hoverData and hoverData.entity then
-                    SetMouseCursorSprite(5)
-                else
-                    SetMouseCursorSprite(0)
+                SetMouseCursorSprite(State.lastHover and State.lastHover.entity and 5 or 0)
+            end
+            
+            if IsDisabledControlJustPressed(0, Config.Controls.selectKey) and CanClick() then
+                RegisterClick()
+                
+                local hover = State.lastHover
+                if not NUI:IsOpen() and hover and hover.hasOptions then
+                    local options = Registry:GetAvailableOptions(hover.entity, hover.entityType, hover.worldPos)
+                    NUI:Open(options, State.cursorPos, hover.entity, hover.entityType, hover.worldPos)
                 end
             end
             
-            if IsDisabledControlJustPressed(0, Config.Controls.selectKey) then
-                if CanClick() then
-                    RegisterClick()
-                    
-                    if not NUI:IsOpen() and State.lastHover and State.lastHover.hasOptions then
-                        local options = Registry:GetAvailableOptions(
-                            State.lastHover.entity,
-                            State.lastHover.entityType,
-                            State.lastHover.worldPos
-                        )
-                        
-                        NUI:Open(
-                            options,
-                            State.cursorPos,
-                            State.lastHover.entity,
-                            State.lastHover.entityType,
-                            State.lastHover.worldPos
-                        )
-                    end
-                end
+            if IsDisabledControlJustPressed(0, 25) and NUI:IsOpen() then
+                NUI:Close()
             end
-            
-            if IsDisabledControlJustPressed(0, 25) then
-                if NUI:IsOpen() then
-                    NUI:Close()
-                end
-            end
-            
         else
             Wait(500)
         end
     end
 end)
 
-RegisterCommand('+nbl_target', function()
-    Activate()
-end, false)
-
-RegisterCommand('-nbl_target', function()
-    Deactivate()
-end, false)
-
+RegisterCommand('+nbl_target', Activate, false)
+RegisterCommand('-nbl_target', Deactivate, false)
 RegisterKeyMapping('+nbl_target', 'Open Target Menu', 'keyboard', Config.Controls.activationKey)
 
 exports('isActive', function() return State.active end)
 exports('isMenuOpen', function() return NUI:IsOpen() end)
-exports('deactivate', function() Deactivate() end)
+exports('deactivate', Deactivate)
 
 exports('enable', function() Registry:Enable() end)
 exports('disable', function() Registry:Disable() end)
@@ -162,119 +130,37 @@ exports('getCurrentTarget', function()
 end)
 
 exports('getSelectedEntity', function()
-    if NUI:IsOpen() then
-        return NUI:GetCurrentEntity()
-    end
-    return nil
+    return NUI:IsOpen() and NUI:GetCurrentEntity() or nil
 end)
 
-exports('closeMenu', function()
-    NUI:Close()
-end)
+exports('closeMenu', function() NUI:Close() end)
 
-exports('addEntity', function(entity, options)
-    return Registry:AddEntity(entity, options)
-end)
+exports('addEntity', function(entity, options) return Registry:AddEntity(entity, options) end)
+exports('addLocalEntity', function(entity, options) return Registry:AddLocalEntity(entity, options) end)
+exports('addModel', function(model, options) return Registry:AddModel(model, options) end)
+exports('addGlobalVehicle', function(options) return Registry:AddGlobalVehicle(options) end)
+exports('addGlobalPed', function(options) return Registry:AddGlobalPed(options) end)
+exports('addGlobalPlayer', function(options) return Registry:AddGlobalPlayer(options) end)
+exports('addGlobalSelf', function(options) return Registry:AddGlobalSelf(options) end)
+exports('addGlobalObject', function(options) return Registry:AddGlobalObject(options) end)
+exports('addGlobalOption', function(entityType, options) return Registry:AddGlobalOption(entityType, options) end)
 
-exports('addLocalEntity', function(entity, options)
-    return Registry:AddLocalEntity(entity, options)
-end)
-
-exports('addModel', function(model, options)
-    return Registry:AddModel(model, options)
-end)
-
-exports('addGlobalVehicle', function(options)
-    return Registry:AddGlobalVehicle(options)
-end)
-
-exports('addGlobalPed', function(options)
-    return Registry:AddGlobalPed(options)
-end)
-
-exports('addGlobalPlayer', function(options)
-    return Registry:AddGlobalPlayer(options)
-end)
-
-exports('addGlobalSelf', function(options)
-    return Registry:AddGlobalSelf(options)
-end)
-
-exports('addGlobalObject', function(options)
-    return Registry:AddGlobalObject(options)
-end)
-
-exports('addGlobalOption', function(entityType, options)
-    return Registry:AddGlobalOption(entityType, options)
-end)
-
-exports('removeEntity', function(id)
+local function HandleRemove(id)
     if type(id) == "table" and id.remove then
         return id:remove()
     end
     return Registry:RemoveById(id)
-end)
+end
 
-exports('removeLocalEntity', function(id)
-    if type(id) == "table" and id.remove then
-        return id:remove()
-    end
-    return Registry:RemoveById(id)
-end)
+exports('removeEntity', HandleRemove)
+exports('removeLocalEntity', HandleRemove)
+exports('removeModel', HandleRemove)
+exports('removeGlobalVehicle', HandleRemove)
+exports('removeGlobalPed', HandleRemove)
+exports('removeGlobalPlayer', HandleRemove)
+exports('removeGlobalObject', HandleRemove)
+exports('removeGlobalOption', HandleRemove)
+exports('remove', HandleRemove)
 
-exports('removeModel', function(id)
-    if type(id) == "table" and id.remove then
-        return id:remove()
-    end
-    return Registry:RemoveById(id)
-end)
-
-exports('removeGlobalVehicle', function(id)
-    if type(id) == "table" and id.remove then
-        return id:remove()
-    end
-    return Registry:RemoveById(id)
-end)
-
-exports('removeGlobalPed', function(id)
-    if type(id) == "table" and id.remove then
-        return id:remove()
-    end
-    return Registry:RemoveById(id)
-end)
-
-exports('removeGlobalPlayer', function(id)
-    if type(id) == "table" and id.remove then
-        return id:remove()
-    end
-    return Registry:RemoveById(id)
-end)
-
-exports('removeGlobalObject', function(id)
-    if type(id) == "table" and id.remove then
-        return id:remove()
-    end
-    return Registry:RemoveById(id)
-end)
-
-exports('removeGlobalOption', function(id)
-    if type(id) == "table" and id.remove then
-        return id:remove()
-    end
-    return Registry:RemoveById(id)
-end)
-
-exports('removeByName', function(name)
-    return Registry:RemoveByName(name)
-end)
-
-exports('removeByResource', function(resourceName)
-    return Registry:RemoveByResource(resourceName)
-end)
-
-exports('remove', function(idOrHandler)
-    if type(idOrHandler) == "table" and idOrHandler.remove then
-        return idOrHandler:remove()
-    end
-    return Registry:RemoveById(idOrHandler)
-end)
+exports('removeByName', function(name) return Registry:RemoveByName(name) end)
+exports('removeByResource', function(resourceName) return Registry:RemoveByResource(resourceName) end)

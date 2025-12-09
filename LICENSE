@@ -1,0 +1,137 @@
+NBL-TARGET LICENSE
+Copyright (c) 2025 Nebula
+
+TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+1. DEFINITIONS
+
+   "License" shall mean the terms and conditions for use, reproduction,
+   and distribution as defined by this document.
+
+   "Licensor" shall mean the copyright owner or entity authorized by
+   the copyright owner that is granting the License.
+
+   "You" (or "Your") shall mean an individual or Legal Entity
+   exercising permissions granted by this License.
+
+   "Source" form shall mean the preferred form for making modifications,
+   including but not limited to software source code, documentation
+   source, and configuration files.
+
+   "Object" form shall mean any form resulting from mechanical
+   transformation or translation of a Source form, including but
+   not limited to compiled object code, generated documentation,
+   and conversions to other media types.
+
+   "Work" shall mean the work of authorship, whether in Source or
+   Object form, made available under License, as indicated by a
+   copyright notice that is included in or attached to the work.
+
+   "Derivative Works" shall mean any work, whether in Source or Object
+   form, that is based on (or derived from) the Work and for which the
+   editorial revisions, annotations, elaborations, or other modifications
+   represent, as a whole, an original work of authorship.
+
+2. GRANT OF COPYRIGHT LICENSE
+
+   Subject to the terms and conditions of this License, each Contributor
+   hereby grants to You a perpetual, worldwide, non-exclusive, no-charge,
+   royalty-free, irrevocable copyright license to reproduce, prepare
+   Derivative Works of, publicly display, publicly perform, sublicense,
+   and distribute the Work and such Derivative Works in Source or Object
+   form.
+
+3. RESTRICTIONS
+
+   The following restrictions apply to the use of this Work:
+
+   a) NAME PRESERVATION
+      You MUST keep the original resource name "nbl-target" (or "NBL-Target")
+      in all distributions, modifications, and Derivative Works. You may NOT
+      rename, rebrand, or change the name of this resource in any way.
+
+   b) NO COMMERCIAL RESALE
+      You may NOT sell, rent, lease, or otherwise commercially distribute
+      this Work or any Derivative Works for monetary compensation. This
+      includes but is not limited to:
+      - Selling the resource on marketplaces
+      - Including it in paid resource packs
+      - Charging for access to modified versions
+      - Using it as part of a paid service
+
+   c) ATTRIBUTION REQUIRED
+      You MUST include the original copyright notice and this License in
+      all copies or substantial portions of the Work. This includes:
+      - The original copyright notice: "Copyright (c) 2025 Nebula"
+      - A link to the original repository (if applicable)
+      - Credit to "Nebula" as the original author
+
+   d) NO REMOVAL OF CREDITS
+      You may NOT remove, modify, or obscure any copyright notices,
+      attribution, or credits contained in the Work.
+
+4. PERMISSIONS
+
+   Subject to the restrictions above, you are free to:
+
+   a) USE
+      Use the Work on any FiveM server, whether public or private,
+      commercial or non-commercial.
+
+   b) MODIFY
+      Modify the Work to suit your needs, provided you maintain the
+      original name and attribution.
+
+   c) DISTRIBUTE
+      Distribute the Work or Derivative Works, provided all restrictions
+      are followed.
+
+   d) PRIVATE USE
+      Use the Work privately without restrictions, as long as it remains
+      private and is not distributed.
+
+   e) INTEGRATION IN OTHER RESOURCES
+      You may integrate and call nbl-target from any other resource via
+      exports or dependencies, provided all other restrictions are followed.
+
+5. DERIVATIVE WORKS
+
+   If you create Derivative Works based on the Work, you must:
+
+   a) Keep the original name "nbl-target"
+   b) Include all original copyright notices
+   c) Clearly indicate what modifications you made
+   d) Distribute under this same License
+   e) Not remove or modify the original attribution
+
+6. TERMINATION
+
+   This License and the rights granted hereunder will terminate
+   automatically if you fail to comply with terms herein and fail to
+   cure such breach within 30 days of becoming aware of the breach.
+
+7. NO WARRANTY
+
+   THE WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+   IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+   CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+   TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE WORK
+   OR THE USE OR OTHER DEALINGS IN THE WORK.
+
+8. LIMITATION OF LIABILITY
+
+   IN NO EVENT AND UNDER NO LEGAL THEORY, WHETHER IN TORT (INCLUDING
+   NEGLIGENCE), CONTRACT, OR OTHERWISE, UNLESS REQUIRED BY APPLICABLE LAW
+   (SUCH AS DELIBERATE AND GROSSLY NEGLIGENT ACTS) OR AGREED TO IN WRITING,
+   SHALL ANY CONTRIBUTOR BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY DIRECT,
+   INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES OF ANY CHARACTER
+   ARISING AS A RESULT OF THIS LICENSE OR OUT OF THE USE OR INABILITY TO USE
+   THE WORK (INCLUDING BUT NOT LIMITED TO DAMAGES FOR LOSS OF GOODWILL, WORK
+   STOPPAGE, COMPUTER FAILURE OR MALFUNCTION, OR ANY AND ALL OTHER COMMERCIAL
+   DAMAGES OR LOSSES), EVEN IF SUCH CONTRIBUTOR HAS BEEN ADVISED OF THE
+   POSSIBILITY OF SUCH DAMAGES.
+
+END OF TERMS AND CONDITIONS
+

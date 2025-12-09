@@ -6,6 +6,7 @@ name 'nbl-target'
 description 'Modern context menu / targeting system for FiveM'
 author 'Nebula'
 version '2.0.0'
+license 'Custom - See LICENSE file'
 
 shared_scripts {
     'config/config.lua'

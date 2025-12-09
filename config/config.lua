@@ -25,7 +25,7 @@ Config.Controls = {
 -- ============================================================================
 Config.Target = {
     -- Maximum distance for raycast detection (in meters)
-    maxDistance = 15.0,
+    maxDistance = 100.0,
     
     -- Raycast flags (what entities can be detected)
     -- 1 = World, 2 = Vehicles, 4 = Peds, 8 = Objects, 16 = Water, 32 = Foliage

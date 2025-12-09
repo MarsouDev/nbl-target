@@ -120,7 +120,7 @@ Config.Menu = {
     -- Refresh interval when menu is open (in milliseconds)
     -- Updates canInteract conditions in real-time
     -- Set to 0 to disable auto-refresh
-    refreshInterval = 250
+    refreshInterval = 100
 }
 
 -- ============================================================================

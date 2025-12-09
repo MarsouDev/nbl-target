@@ -283,7 +283,7 @@ Config.Menu = {
     subMenuDelay = 150,          -- Delay before showing submenu (ms)
     animationDuration = 150,     -- Animation duration (ms)
     closeOnKeyRelease = true,    -- Close menu when releasing activation key
-    refreshInterval = 250        -- Auto-refresh interval (ms, 0 = disabled)
+    refreshInterval = 100        -- Auto-refresh interval (ms, 0 = disabled)
 }
 ```
 
@@ -857,7 +857,7 @@ NBL Target includes a powerful real-time refresh system that updates options and
 
 ```lua
 Config.Menu = {
-    refreshInterval = 250  -- Milliseconds between refreshes
+    refreshInterval = 100  -- Milliseconds between refreshes
 }
 ```
 

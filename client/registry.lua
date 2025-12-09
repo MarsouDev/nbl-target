@@ -432,35 +432,45 @@ end
 
 function Registry:GetAllRegistrations(entity, entityType)
     local results = {}
+    local count = 0
     
-    for _, reg in ipairs(self:GetEntityRegistrations(entity)) do
-        results[#results + 1] = reg
+    local entityRegs = self:GetEntityRegistrations(entity)
+    for i = 1, #entityRegs do
+        count = count + 1
+        results[count] = entityRegs[i]
     end
     
-    for _, reg in ipairs(self:GetModelRegistrations(entity)) do
-        results[#results + 1] = reg
+    local modelRegs = self:GetModelRegistrations(entity)
+    for i = 1, #modelRegs do
+        count = count + 1
+        results[count] = modelRegs[i]
     end
     
-    for _, reg in ipairs(self:GetGlobalTypeRegistrations(entityType)) do
-        results[#results + 1] = reg
+    local globalRegs = self:GetGlobalTypeRegistrations(entityType)
+    for i = 1, #globalRegs do
+        count = count + 1
+        results[count] = globalRegs[i]
     end
     
     return results
 end
 
-function Registry:CanInteract(registration, entity, worldPos, bone)
+local DebugEnabled = Config.Debug.enabled
+
+function Registry:CanInteract(registration, entity, worldPos, bone, cachedDistance)
     if not registration.enabled then return false end
     
-    local distance = Entity:GetDistance(entity, worldPos)
+    local distance = cachedDistance or Entity:GetDistance(entity, worldPos)
     if distance > registration.distance then
         return false
     end
     
-    if registration.canInteract then
-        local success, result = pcall(registration.canInteract, entity, distance, worldPos, registration.name, bone)
+    local canInteractFn = registration.canInteract
+    if canInteractFn then
+        local success, result = pcall(canInteractFn, entity, distance, worldPos, registration.name, bone)
         
         if not success then
-            if Config.Debug.enabled then
+            if DebugEnabled then
                 print("^1[NBL-Target]^7 canInteract error: " .. tostring(result))
             end
             return false
@@ -474,9 +484,14 @@ end
 
 function Registry:HasAvailableOptions(entity, entityType, worldPos)
     local registrations = self:GetAllRegistrations(entity, entityType)
+    local regCount = #registrations
     
-    for _, reg in ipairs(registrations) do
-        if self:CanInteract(reg, entity, worldPos) then
+    if regCount == 0 then return false end
+    
+    local distance = Entity:GetDistance(entity, worldPos)
+    
+    for i = 1, regCount do
+        if self:CanInteract(registrations[i], entity, worldPos, nil, distance) then
             return true
         end
     end
@@ -580,10 +595,16 @@ end
 
 function Registry:GetAvailableOptions(entity, entityType, worldPos)
     local registrations = self:GetAllRegistrations(entity, entityType)
-    local available = {}
+    local regCount = #registrations
     
-    for _, reg in ipairs(registrations) do
-        if self:CanInteract(reg, entity, worldPos) then
+    if regCount == 0 then return {} end
+    
+    local available = {}
+    local distance = Entity:GetDistance(entity, worldPos)
+    
+    for i = 1, regCount do
+        local reg = registrations[i]
+        if self:CanInteract(reg, entity, worldPos, nil, distance) then
             local hasCheckbox = reg.checkbox == true
             
             local processedItems = nil

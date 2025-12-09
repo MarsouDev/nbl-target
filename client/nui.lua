@@ -67,18 +67,26 @@ end
 function NUI:HashOptions(options)
     if not options then return nil end
     
-    local parts = {}
-    for i, opt in ipairs(options) do
-        parts[#parts + 1] = opt.id .. opt.label .. tostring(opt.checked or false)
+    local count = #options
+    if count == 0 then return "" end
+    
+    local hash = count
+    for i = 1, count do
+        local opt = options[i]
+        hash = hash + opt.id + (opt.checked and 1 or 0)
         
-        if opt.items then
-            for j, sub in ipairs(opt.items) do
-                parts[#parts + 1] = sub.id .. sub.label .. tostring(sub.checked or false)
+        local items = opt.items
+        if items then
+            local itemCount = #items
+            hash = hash + itemCount
+            for j = 1, itemCount do
+                local sub = items[j]
+                hash = hash + sub.id + (sub.checked and 1 or 0)
             end
         end
     end
     
-    return table.concat(parts)
+    return hash
 end
 
 function NUI:UpdateWorldPos()
@@ -89,27 +97,30 @@ function NUI:UpdateWorldPos()
 end
 
 function NUI:Refresh()
-    if not self.isOpen or not self.currentEntity then
-        return false
-    end
+    if not self.isOpen then return false end
     
-    if GetEntityType(self.currentEntity) == 0 then
+    local entity = self.currentEntity
+    if not entity then return false end
+    
+    if GetEntityType(entity) == 0 then
         self:Close()
         return false
     end
     
     self:UpdateWorldPos()
     
-    local options = Registry:GetAvailableOptions(self.currentEntity, self.currentEntityType, self.currentWorldPos)
+    local options = Registry:GetAvailableOptions(entity, self.currentEntityType, self.currentWorldPos)
+    local optionCount = #options
     
-    if #options == 0 then
+    if optionCount == 0 then
         self:Close()
         return false
     end
     
     local newHash = self:HashOptions(options)
+    local hashChanged = newHash ~= self.lastOptionsHash
     
-    if newHash ~= self.lastOptionsHash or self.refreshPaused then
+    if hashChanged or self.refreshPaused then
         if not self.refreshPaused then
             self.lastOptionsHash = newHash
         end
@@ -185,10 +196,13 @@ function NUI:CheckDistance()
 end
 
 CreateThread(function()
+    local refreshInterval = Config.Menu.refreshInterval
+    local isRefreshEnabled = refreshInterval > 0
+    
     while true do
-        if NUI.isOpen and Config.Menu.refreshInterval > 0 then
+        if NUI.isOpen and isRefreshEnabled then
             NUI:Refresh()
-            Wait(Config.Menu.refreshInterval)
+            Wait(refreshInterval)
         else
             Wait(500)
         end

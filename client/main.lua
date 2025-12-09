@@ -46,9 +46,12 @@ local function Deactivate()
     end
 end
 
+local DisabledControls = Config.DisabledControls
+local DisabledControlsCount = #DisabledControls
+
 local function DisableControls()
-    for i = 1, #Config.DisabledControls do
-        DisableControlAction(0, Config.DisabledControls[i], true)
+    for i = 1, DisabledControlsCount do
+        DisableControlAction(0, DisabledControls[i], true)
     end
 end
 
@@ -65,12 +68,16 @@ local function RegisterClick()
 end
 
 CreateThread(function()
+    local selectKey = Config.Controls.selectKey
+    
     while true do
         if State.active then
             Wait(0)
             DisableControls()
             
-            if NUI:IsOpen() then
+            local isMenuOpen = NUI:IsOpen()
+            
+            if isMenuOpen then
                 NUI:CheckDistance()
                 Visual:DrawLockedEntity()
             else
@@ -78,20 +85,21 @@ CreateThread(function()
                 State.cursorPos = GetCursorPosition()
                 State.lastHover = Visual:ProcessHover(State.cursorPos)
                 
-                SetMouseCursorSprite(State.lastHover and State.lastHover.entity and 5 or 0)
+                local hover = State.lastHover
+                SetMouseCursorSprite(hover and hover.entity and 5 or 0)
             end
             
-            if IsDisabledControlJustPressed(0, Config.Controls.selectKey) and CanClick() then
+            if IsDisabledControlJustPressed(0, selectKey) and CanClick() then
                 RegisterClick()
                 
                 local hover = State.lastHover
-                if not NUI:IsOpen() and hover and hover.hasOptions then
+                if not isMenuOpen and hover and hover.hasOptions then
                     local options = Registry:GetAvailableOptions(hover.entity, hover.entityType, hover.worldPos)
                     NUI:Open(options, State.cursorPos, hover.entity, hover.entityType, hover.worldPos)
                 end
             end
             
-            if IsDisabledControlJustPressed(0, 25) and NUI:IsOpen() then
+            if IsDisabledControlJustPressed(0, 25) and isMenuOpen then
                 NUI:Close()
             end
         else

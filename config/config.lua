@@ -132,6 +132,26 @@ Config.Debug = {
 }
 
 -- ============================================================================
+-- MAP OBJECTS DETECTION
+-- ============================================================================
+-- Some objects (ATMs, etc.) are static MAP props that don't register as normal entities
+-- Add model names here to enable targeting them
+-- Users can add custom mapping models if needed
+Config.MapObjectModels = {
+    'prop_atm_01',
+    'prop_atm_02', 
+    'prop_atm_03',
+    'prop_fleeca_atm',
+}
+
+-- Search radius for MAP objects (in meters)
+Config.MapObjectSearchRadius = 2.5
+
+-- Maximum distance from hit point to accept object (in meters)
+-- Higher values make it easier to target (ATMs are tall, center is at bottom)
+Config.MapObjectMaxDistance = 2.5
+
+-- ============================================================================
 -- DISABLED CONTROLS (while targeting mode is active)
 -- ============================================================================
 Config.DisabledControls = {

@@ -8,6 +8,7 @@ local CameraCache = {
 }
 
 local ScreenResolution = { x = 1920, y = 1080, lastUpdate = 0 }
+local MapObjectHashes = nil
 
 local function UpdateCameraCache()
     local now = GetGameTimer()
@@ -43,51 +44,49 @@ local function IsEntityUsable(entity)
     return GetEntityType(entity) ~= 0
 end
 
-local COMMON_OBJECT_MODELS = {
-    GetHashKey("prop_atm_01"),
-    GetHashKey("prop_atm_02"),
-    GetHashKey("prop_atm_03"),
-    GetHashKey("prop_fleeca_atm"),
-    GetHashKey("prop_atm_01_sb"),
-    GetHashKey("prop_atm_02_sb"),
-    GetHashKey("prop_atm_03_sb"),
-    GetHashKey("ch_prop_casino_atm_01"),
-    GetHashKey("ch_prop_casino_atm_02"),
-    GetHashKey("prop_vend_snak_01"),
-    GetHashKey("prop_vend_snak_01_tu"),
-    GetHashKey("prop_vend_coffe_01"),
-    GetHashKey("prop_vend_water_01"),
-    GetHashKey("prop_vend_soda_01"),
-    GetHashKey("prop_vend_soda_02"),
-    GetHashKey("prop_newspaper_01"),
-    GetHashKey("prop_postbox_01a"),
-    GetHashKey("prop_postbox_01b"),
-    GetHashKey("prop_bin_01a"),
-    GetHashKey("prop_bin_02a"),
-    GetHashKey("prop_bin_03a"),
-    GetHashKey("prop_bin_04a"),
-    GetHashKey("prop_bin_05a"),
-}
+local function GetMapObjectHashes()
+    if MapObjectHashes then
+        return MapObjectHashes
+    end
+    
+    MapObjectHashes = {}
+    
+    if Config.MapObjectModels then
+        for _, modelName in ipairs(Config.MapObjectModels) do
+            local hash = type(modelName) == "string" and GetHashKey(modelName) or modelName
+            MapObjectHashes[#MapObjectHashes + 1] = hash
+        end
+    end
+    
+    return MapObjectHashes
+end
 
-local function FindNearbyObjectByModels(worldPos, radius)
+local function FindNearbyMapObject(worldPos)
     if not worldPos then return 0 end
     
+    local searchRadius = Config.MapObjectSearchRadius or 2.0
+    local maxAcceptDist = Config.MapObjectMaxDistance or 1.2
+    
     local registeredModels = Registry:GetRegisteredModels()
-    local allModels = {}
-    
-    for _, m in ipairs(registeredModels) do
-        allModels[#allModels + 1] = m
-    end
-    
-    for _, m in ipairs(COMMON_OBJECT_MODELS) do
-        allModels[#allModels + 1] = m
-    end
+    local configModels = GetMapObjectHashes()
     
     local closestObj = 0
-    local closestDist = radius
+    local closestDist = maxAcceptDist
     
-    for _, modelHash in ipairs(allModels) do
-        local obj = GetClosestObjectOfType(worldPos.x, worldPos.y, worldPos.z, radius, modelHash, false, false, false)
+    for _, modelHash in ipairs(registeredModels) do
+        local obj = GetClosestObjectOfType(worldPos.x, worldPos.y, worldPos.z, searchRadius, modelHash, false, false, false)
+        if obj and obj ~= 0 then
+            local objCoords = GetEntityCoords(obj)
+            local dist = #(worldPos - objCoords)
+            if dist < closestDist then
+                closestDist = dist
+                closestObj = obj
+            end
+        end
+    end
+    
+    for _, modelHash in ipairs(configModels) do
+        local obj = GetClosestObjectOfType(worldPos.x, worldPos.y, worldPos.z, searchRadius, modelHash, false, false, false)
         if obj and obj ~= 0 then
             local objCoords = GetEntityCoords(obj)
             local dist = #(worldPos - objCoords)
@@ -155,7 +154,7 @@ function Raycast:FromScreen(screenPos, maxDistance, flags, ignoreEntity)
             return true, worldPos, normal, entity, material
         end
         
-        local nearbyObj = FindNearbyObjectByModels(worldPos, 3.0)
+        local nearbyObj = FindNearbyMapObject(worldPos)
         if nearbyObj ~= 0 then
             return true, worldPos, normal, nearbyObj, material
         end
@@ -186,4 +185,8 @@ function Raycast:ScreenToWorld(screenPos, distance)
     if not camForward then return pos end
     
     return camPos + (camForward * distance)
+end
+
+function Raycast:ReloadMapObjectHashes()
+    MapObjectHashes = nil
 end

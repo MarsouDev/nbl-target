@@ -81,6 +81,13 @@ function NUI:HashOptions(options)
     return table.concat(parts)
 end
 
+function NUI:UpdateWorldPos()
+    if not self.currentEntity or self.currentEntity == 0 then return end
+    if GetEntityType(self.currentEntity) == 0 then return end
+    
+    self.currentWorldPos = GetEntityCoords(self.currentEntity)
+end
+
 function NUI:Refresh()
     if not self.isOpen or not self.currentEntity then
         return false
@@ -90,6 +97,8 @@ function NUI:Refresh()
         self:Close()
         return false
     end
+    
+    self:UpdateWorldPos()
     
     local options = Registry:GetAvailableOptions(self.currentEntity, self.currentEntityType, self.currentWorldPos)
     
@@ -123,20 +132,51 @@ function NUI:GetTimeSinceOpen()
 end
 
 function NUI:CheckDistance()
-    if not self.isOpen or not self.currentEntity then
+    if not self.isOpen then
         return true
     end
     
-    if GetEntityType(self.currentEntity) == 0 then
+    local entity = self.currentEntity
+    if not entity then
+        return true
+    end
+    
+    local entityType = GetEntityType(entity)
+    if entityType == 0 then
         self:Close()
         return false
     end
     
-    local playerCoords = GetEntityCoords(PlayerPedId())
-    local entityCoords = GetEntityCoords(self.currentEntity)
+    local playerPed = PlayerPedId()
+    
+    if entity == playerPed then
+        return true
+    end
+    
+    if entityType == 2 then
+        local vehicle = GetVehiclePedIsIn(playerPed, false)
+        if vehicle ~= 0 and vehicle == entity then
+            return true
+        end
+    end
+    
+    if entityType == 1 then
+        if IsPedInAnyVehicle(entity, false) then
+            local entityVehicle = GetVehiclePedIsIn(entity, false)
+            local playerVehicle = GetVehiclePedIsIn(playerPed, false)
+            if entityVehicle ~= 0 and entityVehicle == playerVehicle then
+                return true
+            end
+        end
+    end
+    
+    self:UpdateWorldPos()
+    
+    local playerCoords = GetEntityCoords(playerPed)
+    local entityCoords = GetEntityCoords(entity)
     local distance = #(playerCoords - entityCoords)
     
-    if distance > Config.Target.maxDistance + 2.0 then
+    if distance > Config.Target.maxDistance + 10.0 then
         self:Close()
         return false
     end
@@ -208,3 +248,4 @@ RegisterNUICallback("check", function(data, cb)
     
     Registry:OnCheck(optionId, NUI.currentEntity, NUI.currentWorldPos, data.checked == true)
 end)
+

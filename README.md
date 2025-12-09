@@ -11,22 +11,54 @@ A modern, feature-rich context menu and targeting system for FiveM. Built with p
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
+  - [Controls](#controls)
+  - [Targeting](#targeting)
+  - [Outline](#outline-entity-highlight)
+  - [Marker](#marker-3d-marker-above-entity)
+  - [Menu](#menu-nui-context-menu)
+  - [MAP Objects Detection](#map-objects-detection)
+  - [Debug](#debug)
+  - [Disabled Controls](#disabled-controls-while-targeting-mode-is-active)
 - [Complete API Reference](#complete-api-reference)
+  - [State Exports](#state-exports)
+  - [Control Exports](#control-exports)
+  - [Registration Exports](#registration-exports)
+  - [Removal Exports](#removal-exports)
 - [Checkboxes System](#checkboxes-system)
 - [Sub-menus](#sub-menus)
 - [Real-time Refresh System](#real-time-refresh-system)
 - [Handler Methods](#handler-methods)
 - [Usage Examples](#usage-examples)
+  - [Basic Examples](#basic-examples)
+  - [Model Registration (ATMs and Static Objects)](#model-registration-atms-and-static-objects)
+  - [Sky/Ground Targeting](#registering-options-for-skyground)
+  - [Movement Support](#menu-stability-while-moving)
 - [Advanced Features](#advanced-features)
+  - [Real-time Option Updates](#real-time-option-updates)
+  - [Resource Auto-cleanup](#resource-auto-cleanup)
+  - [Entity Type Detection](#entity-type-detection)
+  - [Menu Stability While Moving](#menu-stability-while-moving)
+  - [Cursor Feedback](#cursor-feedback)
+  - [Limitations and What Doesn't Work](#limitations-and-what-doesnt-work)
 - [Performance Optimizations](#performance-optimizations)
 - [Best Practices](#best-practices)
 - [Troubleshooting](#troubleshooting)
+  - [ATM or MAP Object Not Detected](#atm-or-map-object-not-detected)
+  - [Menu Closes While Moving](#menu-closes-while-moving)
+- [Technical Details](#technical-details)
+  - [How MAP Props Detection Works](#how-map-props-detection-works)
 
 ---
 
 ## Overview
 
-NBL Target is a comprehensive targeting system that allows players to interact with entities (vehicles, peds, objects, players, self) through a modern context menu interface. Hold the activation key (default: Left Alt) to enter targeting mode, then click on any entity to open a context menu with available interaction options.
+NBL Target is a comprehensive targeting system that allows players to interact with entities (vehicles, peds, objects, players, self, ground, sky) through a modern context menu interface. Hold the activation key (default: Left Alt) to enter targeting mode, then click on any entity to open a context menu with available interaction options.
+
+**Key Highlights:**
+- ✅ **MAP Props Support**: Automatically detects static world objects (ATMs, vending machines) even inside buildings
+- ✅ **Movement-Friendly**: Menu stays open while moving (in vehicles, walking with peds)
+- ✅ **Sky/Ground Targeting**: Register options for clicking in the sky or on the ground
+- ✅ **Configurable Detection**: Customize MAP object detection for your mapping
 
 ### How It Works
 
@@ -44,6 +76,7 @@ NBL Target is a comprehensive targeting system that allows players to interact w
 ## ✨ Features
 
 - 🎯 **Advanced Targeting System**: Precise entity detection with configurable raycast (vehicles, peds, objects, ground, sky, self)
+- 🏦 **MAP Props Detection**: Automatic detection of static world objects (ATMs, vending machines) even when inside buildings
 - 🖱️ **Visual Feedback**: Outline and 3D markers on hover for clear entity indication
 - 🎨 **Dynamic Cursor**: Cursor changes based on entity state (has options or not)
 - 📦 **Flexible Registration**: Register options for specific entities, models, or global types
@@ -52,12 +85,14 @@ NBL Target is a comprehensive targeting system that allows players to interact w
 - 📋 **Sub-menus**: Nested options with hover support and conditional display
 - ☑️ **Checkboxes**: Interactive checkboxes with real-time state updates
 - ⚡ **Real-time Updates**: Auto-refresh options based on `canInteract` conditions and checkbox states
+- 🚗 **Movement Support**: Menu stays open while moving (in vehicles, walking with peds, etc.)
 - 🔧 **Multiple Actions**: Support for exports, events, serverEvents, commands, and callbacks
 - 🛡️ **Error Handling**: Complete protection against crashes with `pcall` wrappers
 - ⚡ **Optimized Performance**: 0ms CPU when inactive, efficient resource usage
 - 🔄 **Auto-cleanup**: Automatic removal of options when resources stop
 - 🎛️ **Handler Methods**: Dynamic control of registered options (change label, icon, enable/disable, etc.)
 - 🔗 **Method Chaining**: Chain multiple handler methods for cleaner code
+- ⚙️ **Configurable MAP Objects**: Add custom static object models in config for custom mapping support
 
 ---
 
@@ -264,6 +299,53 @@ Config.Menu = {
 - Only sends updates to NUI if something actually changed (smart hash comparison)
 - Works in main menu AND sub-menus (checkboxes update in real-time)
 
+### MAP Objects Detection
+
+Some objects in the game (like ATMs, vending machines) are **static MAP props** - they're part of the world geometry and don't register as normal entities. NBL Target automatically detects these objects when you aim at them.
+
+```lua
+Config.MapObjectModels = {
+    'prop_atm_01',
+    'prop_atm_02', 
+    'prop_atm_03',
+    'prop_fleeca_atm',
+    -- Add your custom mapping models here
+}
+
+Config.MapObjectSearchRadius = 2.5    -- Search radius (meters)
+Config.MapObjectMaxDistance = 2.5     -- Max distance from hit point (meters)
+```
+
+**How It Works:**
+1. When raycast hits a MAP prop (wall, floor, etc.), the entity is invalid (`GetEntityType == 0`)
+2. System searches for registered models near the hit point
+3. If an object is found within `MapObjectMaxDistance`, it's selected
+4. This allows targeting ATMs even when they're inside buildings
+
+**Adding Custom Models:**
+If you have custom mapping with new objects, add their model names to `Config.MapObjectModels`:
+
+```lua
+Config.MapObjectModels = {
+    'prop_atm_01',
+    'prop_atm_02',
+    'prop_atm_03',
+    'prop_fleeca_atm',
+    'your_custom_atm_model',      -- Add custom models here
+    'your_custom_vending_model',
+}
+```
+
+**Tuning Detection:**
+- **`MapObjectSearchRadius`**: How far to search for objects (default: 2.5m)
+  - Higher = finds objects further away
+  - Lower = more precise, only finds very close objects
+- **`MapObjectMaxDistance`**: Maximum distance from hit point to accept object (default: 2.5m)
+  - Higher = easier to target (good for tall objects like ATMs)
+  - Lower = more precise targeting required
+
+**Note:** Objects registered via `addModel()` are automatically included in the search, so you don't need to add them to `Config.MapObjectModels`.
+
 ---
 
 ## Complete API Reference
@@ -431,6 +513,36 @@ Register an option for all objects.
 
 ```lua
 local target = exports['nbl-target']:addGlobalObject(options)
+```
+
+#### `addGlobalSky(options)`
+
+Register an option for when clicking in the sky (no entity hit).
+
+```lua
+local target = exports['nbl-target']:addGlobalSky({
+    label = "Weather Menu",
+    icon = "fas fa-cloud-sun",
+    name = "weather_menu",
+    onSelect = function()
+        TriggerEvent('weather:openMenu')
+    end
+})
+```
+
+#### `addGlobalGround(options)`
+
+Register an option for when clicking on the ground.
+
+```lua
+local target = exports['nbl-target']:addGlobalGround({
+    label = "Place Object",
+    icon = "fas fa-cube",
+    name = "place_object",
+    onSelect = function(entity, coords)
+        SpawnObject(coords)
+    end
+})
 ```
 
 #### `addGlobalOption(entityType, options)`
@@ -1161,7 +1273,11 @@ exports['nbl-target']:addGlobalVehicle({
 })
 ```
 
-### Model Registration (ATMs)
+### Model Registration (ATMs and Static Objects)
+
+ATMs and other static world objects are **MAP props** - they're part of the world geometry. NBL Target automatically detects them using the models configured in `Config.MapObjectModels`.
+
+**Method 1: Using addModel() (Recommended)**
 
 ```lua
 exports['nbl-target']:addModel({
@@ -1179,6 +1295,45 @@ exports['nbl-target']:addModel({
     end
 })
 ```
+
+**Method 2: Adding to Config (For Custom Mapping)**
+
+If you have custom mapping with new ATM models, add them to `Config.MapObjectModels`:
+
+```lua
+Config.MapObjectModels = {
+    'prop_atm_01',
+    'prop_atm_02',
+    'prop_atm_03',
+    'prop_fleeca_atm',
+    'your_custom_atm_model',  -- Custom mapping model
+}
+```
+
+Then register options for them:
+
+```lua
+exports['nbl-target']:addModel('your_custom_atm_model', {
+    label = "Use ATM",
+    icon = "fas fa-credit-card",
+    name = "use_atm",
+    onSelect = function(entity, coords)
+        TriggerEvent('banking:openATM')
+    end
+})
+```
+
+**How MAP Props Detection Works:**
+1. When you aim at an ATM, the raycast hits the wall/floor behind it
+2. The system detects this is a MAP prop (invalid entity)
+3. It searches for registered ATM models near the hit point
+4. If found within `Config.MapObjectMaxDistance`, the ATM is selected
+5. This works even when ATMs are inside buildings!
+
+**Troubleshooting:**
+- **ATM not detected**: Make sure the model name is in `Config.MapObjectModels` or registered via `addModel()`
+- **ATM detected too easily**: Lower `Config.MapObjectMaxDistance` (default: 2.5m)
+- **ATM hard to target**: Increase `Config.MapObjectMaxDistance` or `Config.MapObjectSearchRadius`
 
 ### Using Exports
 
@@ -1267,12 +1422,69 @@ The system automatically detects entity types:
 - `player` - Other players
 - `object` - Objects/props
 - `self` - The player themselves
-- `ground` - Ground/terrain
-- `sky` - Sky/empty space
+- `ground` - Ground/terrain (when clicking on ground)
+- `sky` - Sky/empty space (when clicking in sky)
+
+**Registering Options for Sky/Ground:**
+
+```lua
+-- Options when clicking in the sky
+exports['nbl-target']:addGlobalSky({
+    label = "Weather Menu",
+    icon = "fas fa-cloud-sun",
+    name = "weather_menu",
+    onSelect = function()
+        TriggerEvent('weather:openMenu')
+    end
+})
+
+-- Options when clicking on the ground
+exports['nbl-target']:addGlobalGround({
+    label = "Place Object",
+    icon = "fas fa-cube",
+    name = "place_object",
+    onSelect = function(entity, coords)
+        SpawnObject(coords)
+    end
+})
+```
+
+### Menu Stability While Moving
+
+The menu **stays open** while you're moving, making it perfect for:
+- **Vehicles**: Open menu while driving, menu stays open
+- **Walking with Peds**: Walk alongside a ped, menu stays open
+- **Self Options**: Move around while menu is open
+
+**How it works:**
+- If you're in a vehicle and target that vehicle, menu never closes
+- If you're walking with a ped, menu stays open as long as you're close
+- Distance tolerance is increased to `maxDistance + 10.0` for movement
+- Entity position is updated in real-time during menu refresh
 
 ### Cursor Feedback
 
 The cursor automatically changes when hovering over targetable entities, even if they don't have registered options. This prevents "cheating" by knowing which objects are interactive.
+
+### Limitations and What Doesn't Work
+
+**What Works:**
+- ✅ Dynamic entities (vehicles, peds, objects spawned by scripts)
+- ✅ Static MAP props (ATMs, vending machines) via model detection
+- ✅ Self-targeting (clicking on yourself)
+- ✅ Sky/Ground targeting (clicking in empty space or on ground)
+- ✅ Menu stays open while moving (in vehicles, with peds)
+
+**What Doesn't Work:**
+- ❌ **MAP props without model registration**: If an object isn't in `Config.MapObjectModels` or registered via `addModel()`, it won't be detected
+- ❌ **Objects behind walls**: Raycast hits the wall first, so objects completely hidden behind walls won't be detected (unless they're registered MAP models)
+- ❌ **Outline on peds**: `SetEntityDrawOutline` crashes on peds/players/self - always keep these disabled in config
+- ❌ **Very far objects**: Objects beyond `maxDistance` won't be detected (default: 100m)
+
+**Known Issues:**
+- MAP props detection requires the object to be within `Config.MapObjectMaxDistance` of the hit point
+- Tall objects (like ATMs) may require higher `MapObjectMaxDistance` values
+- Custom mapping models must be added to `Config.MapObjectModels` manually
 
 ---
 
@@ -1425,6 +1637,35 @@ vehicleOption:setLabel("New Label")
 3. Use model registration instead of individual entity registration
 4. Disable registry when not needed: `exports['nbl-target']:disable()`
 
+### ATM or MAP Object Not Detected
+
+**Symptoms:** Can't target ATMs or other static objects.
+
+**Solutions:**
+1. **Check Model Registration**: Ensure the model is registered via `addModel()` or in `Config.MapObjectModels`
+2. **Verify Model Name**: Use the exact model name (e.g., `'prop_atm_01'` not `'atm'`)
+3. **Check Distance Settings**: Increase `Config.MapObjectSearchRadius` or `Config.MapObjectMaxDistance`
+4. **Test Model Hash**: Print the model hash to verify: `print(GetHashKey('prop_atm_01'))`
+5. **Custom Mapping**: If using custom mapping, add the model name to `Config.MapObjectModels`
+
+**Example Debug:**
+```lua
+-- Test if model exists
+local modelHash = GetHashKey('prop_atm_01')
+local obj = GetClosestObjectOfType(x, y, z, 5.0, modelHash, false, false, false)
+print("Model hash:", modelHash, "Found object:", obj)
+```
+
+### Menu Closes While Moving
+
+**Symptoms:** Menu closes when driving or walking.
+
+**Solutions:**
+1. **Vehicle**: If targeting a vehicle you're in, menu should stay open automatically
+2. **Distance**: Menu allows `maxDistance + 10.0` for movement tolerance
+3. **Entity Type**: Ensure you're targeting the correct entity (vehicle, ped, self)
+4. **Check Entity**: Verify entity is still valid: `GetEntityType(entity) ~= 0`
+
 ---
 
 ## Technical Details
@@ -1461,6 +1702,33 @@ vehicleOption:setLabel("New Label")
 When you pass functions via exports (`exports['nbl-target']:addGlobalSelf(...)`), FiveM wraps them in callable tables. The system handles both:
 - Normal functions: `type(checked) == "function"`
 - FiveM-wrapped functions: `type(checked) == "table"`
+
+### How MAP Props Detection Works
+
+**The Problem:**
+Some objects in GTA V (ATMs, vending machines, etc.) are **static MAP props** - they're part of the world geometry, not dynamic entities. When you aim at them:
+- The raycast hits the wall/floor behind them
+- `GetEntityType` returns `0` (invalid entity)
+- Normal entity detection fails
+
+**The Solution:**
+1. **Raycast Detection**: System performs raycast and gets hit position
+2. **Entity Validation**: If `GetEntityType(entity) == 0`, it's a MAP prop
+3. **Model Search**: System searches for registered models near hit point using `GetClosestObjectOfType`
+4. **Distance Check**: Object must be within `Config.MapObjectMaxDistance` of hit point
+5. **Selection**: If found, the object is returned as the target entity
+
+**Technical Implementation:**
+- Uses `GetClosestObjectOfType` with model hash to find objects
+- Searches within `Config.MapObjectSearchRadius` meters
+- Accepts objects within `Config.MapObjectMaxDistance` of hit point
+- Works with both registered models (`addModel()`) and config models (`Config.MapObjectModels`)
+- Handles tall objects (like ATMs) by using larger acceptance distance
+
+**Why This Works:**
+- MAP props are always at fixed world positions
+- `GetClosestObjectOfType` can find them even when raycast hits geometry
+- Distance check ensures precision (you must aim reasonably close)
 
 Both are called using `pcall()` for safety.
 

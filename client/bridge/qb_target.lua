@@ -24,6 +24,59 @@ local function WarnZoneNotSupported(zoneName)
     end
 end
 
+local function BuildDataObject(entity, worldPos, opt)
+    local playerPed = PlayerPedId()
+    local playerCoords = GetEntityCoords(playerPed)
+    local entityCoords = worldPos or (entity and entity ~= 0 and GetEntityCoords(entity) or playerCoords)
+    local distance = entity and entity ~= 0 and #(playerCoords - entityCoords) or 0.0
+    local entityModel = entity and entity ~= 0 and GetEntityModel(entity) or nil
+    local entityType = entity and entity ~= 0 and GetEntityType(entity) or nil
+    
+    return {
+        entity = entity,
+        coords = entityCoords,
+        distance = distance,
+        model = entityModel,
+        type = entityType,
+        hash = entityModel,
+        bone = nil,
+        name = opt and (opt.name or opt.label) or nil,
+        label = opt and opt.label or nil,
+        icon = opt and opt.icon or nil,
+        options = opt
+    }
+end
+
+local function WrapAction(originalAction, opt)
+    if not originalAction or type(originalAction) ~= "function" then
+        return nil
+    end
+    
+    return function(entity, worldPos, registration)
+        local data = BuildDataObject(entity, worldPos, opt)
+        return originalAction(data)
+    end
+end
+
+local function WrapCanInteract(originalCanInteract, opt)
+    if not originalCanInteract or type(originalCanInteract) ~= "function" then
+        return nil
+    end
+    
+    return function(entity, distance, worldPos, name)
+        local data = BuildDataObject(entity, worldPos, opt)
+        data.distance = distance
+        data.name = name or (opt and opt.name)
+        
+        local success, result = pcall(originalCanInteract, entity, distance, data)
+        if not success then
+            success, result = pcall(originalCanInteract, data)
+        end
+        
+        return result
+    end
+end
+
 local function ConvertOptions(options, defaultDistance)
     if not options then return {} end
     
@@ -45,12 +98,12 @@ local function ConvertOptions(options, defaultDistance)
                 name = opt.name or opt.label,
                 icon = opt.icon,
                 distance = opt.distance or defaultDistance,
-                canInteract = opt.canInteract,
+                canInteract = WrapCanInteract(opt.canInteract, opt),
                 shouldClose = true
             }
             
             if opt.action then
-                newOpt.onSelect = opt.action
+                newOpt.onSelect = WrapAction(opt.action, opt)
             elseif opt.event then
                 if opt.type == "server" then
                     newOpt.serverEvent = opt.event
@@ -62,10 +115,10 @@ local function ConvertOptions(options, defaultDistance)
             end
             
             if opt.job then
-                local originalCanInteract = newOpt.canInteract
+                local wrappedCanInteract = newOpt.canInteract
                 newOpt.canInteract = function(entity, distance, worldPos, name)
-                    if originalCanInteract then
-                        local success, result = pcall(originalCanInteract, entity, distance, worldPos, name)
+                    if wrappedCanInteract then
+                        local success, result = pcall(wrappedCanInteract, entity, distance, worldPos, name)
                         if not success or not result then
                             return false
                         end
@@ -606,4 +659,3 @@ RegisterQTargetExport('AllowTargeting', function(state)
         exports['nbl-target']:enable()
     end
 end)
-

@@ -4,19 +4,71 @@ local function RegisterExport(exportName, func)
     end)
 end
 
+local function WrapOnSelect(originalOnSelect, optionName)
+    if not originalOnSelect or type(originalOnSelect) ~= "function" then
+        return nil
+    end
+    
+    return function(entity, worldPos, registration)
+        local playerPed = PlayerPedId()
+        local playerCoords = GetEntityCoords(playerPed)
+        local entityCoords = worldPos or (entity and entity ~= 0 and GetEntityCoords(entity) or playerCoords)
+        local distance = entity and entity ~= 0 and #(playerCoords - entityCoords) or 0.0
+        
+        local data = {
+            entity = entity,
+            coords = entityCoords,
+            distance = distance,
+            zone = nil,
+            name = optionName or (registration and registration.name),
+            model = entity and entity ~= 0 and GetEntityModel(entity) or nil,
+            type = entity and entity ~= 0 and GetEntityType(entity) or nil
+        }
+        
+        return originalOnSelect(data)
+    end
+end
+
+local function WrapCanInteract(originalCanInteract)
+    if not originalCanInteract or type(originalCanInteract) ~= "function" then
+        return nil
+    end
+    
+    return function(entity, distance, worldPos, name)
+        local data = {
+            entity = entity,
+            coords = worldPos,
+            distance = distance,
+            zone = nil,
+            name = name,
+            model = entity and entity ~= 0 and GetEntityModel(entity) or nil,
+            type = entity and entity ~= 0 and GetEntityType(entity) or nil
+        }
+        
+        local success, result = pcall(originalCanInteract, entity, distance, worldPos, name, nil)
+        if not success then
+            success, result = pcall(originalCanInteract, data)
+        end
+        
+        return result
+    end
+end
+
 local function ConvertOptions(options)
     if not options then return {} end
     
     local converted = {}
     
     for i, opt in ipairs(options) do
+        local optionName = opt.name or opt.label
+        
         local newOpt = {
             label = opt.label or opt.name,
-            name = opt.name or opt.label,
+            name = optionName,
             icon = opt.icon,
             distance = opt.distance,
-            canInteract = opt.canInteract,
-            onSelect = opt.onSelect,
+            canInteract = WrapCanInteract(opt.canInteract),
+            onSelect = WrapOnSelect(opt.onSelect, optionName),
             event = opt.event,
             serverEvent = opt.serverEvent,
             command = opt.command,
@@ -24,10 +76,10 @@ local function ConvertOptions(options)
         }
         
         if opt.groups then
-            local originalCanInteract = newOpt.canInteract
+            local wrappedCanInteract = newOpt.canInteract
             newOpt.canInteract = function(entity, distance, worldPos, name)
-                if originalCanInteract then
-                    local success, result = pcall(originalCanInteract, entity, distance, worldPos, name)
+                if wrappedCanInteract then
+                    local success, result = pcall(wrappedCanInteract, entity, distance, worldPos, name)
                     if not success or not result then
                         return false
                     end
@@ -286,3 +338,14 @@ RegisterExport('removeZone', function(id)
     return nil
 end)
 
+RegisterExport('getEntityOptions', function(entity)
+    return nil
+end)
+
+RegisterExport('getZoneOptions', function(id)
+    return nil
+end)
+
+RegisterExport('getGlobalOptions', function(type)
+    return nil
+end)

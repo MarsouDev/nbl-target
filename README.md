@@ -2,6 +2,19 @@
 
 A modern, feature-rich context menu and targeting system for FiveM. Built with performance, flexibility, and ease of use in mind.
 
+**🔗 Links:**
+- [GitHub Repository](https://github.com/your-username/nbl-target) *(Update with your actual GitHub link)*
+- [FiveM Keymaster](https://keymaster.fivem.net/) *(Update with your actual Keymaster link if available)*
+
+**✨ Key Features:**
+- ✅ **Full Compatibility**: Drop-in replacement for `ox_target` and `qb-target` - works with existing scripts without modification
+- ✅ **MAP Props Support**: Automatically detects static world objects (ATMs, vending machines) even inside buildings
+- ✅ **Movement-Friendly**: Menu stays open while moving (in vehicles, walking with peds)
+- ✅ **Sky/Ground Targeting**: Register options for clicking in the sky or on the ground
+- ✅ **Real-time Updates**: Auto-refresh options and checkboxes based on conditions
+- ✅ **Sub-menus & Checkboxes**: Nested menus with interactive checkboxes
+- ✅ **Optimized Performance**: 0ms CPU when inactive, efficient resource usage
+
 ---
 
 ## 📋 Table of Contents
@@ -76,29 +89,32 @@ NBL Target is a comprehensive targeting system that allows players to interact w
 ## ✨ Features
 
 - 🎯 **Advanced Targeting System**: Precise entity detection with configurable raycast (vehicles, peds, objects, ground, sky, self)
+- 🔄 **Full Compatibility**: Drop-in replacement for `ox_target` and `qb-target` - existing scripts work without modification
 - 🏦 **MAP Props Detection**: Automatic detection of static world objects (ATMs, vending machines) even when inside buildings
 - 🖱️ **Visual Feedback**: Outline and 3D markers on hover for clear entity indication
 - 🎨 **Dynamic Cursor**: Cursor changes based on entity state (has options or not)
 - 📦 **Flexible Registration**: Register options for specific entities, models, or global types
 - 🔄 **Array Support**: Register for multiple entities or models with a single call
 - 🎨 **Modern NUI Menu**: Beautiful dark-themed context menu with smooth animations
-- 📋 **Sub-menus**: Nested options with hover support and conditional display
+- 📋 **Sub-menus**: Nested options with hover support and conditional display (up to 2 levels deep)
 - ☑️ **Checkboxes**: Interactive checkboxes with real-time state updates
-- ⚡ **Real-time Updates**: Auto-refresh options based on `canInteract` conditions and checkbox states
+- ⚡ **Real-time Updates**: Auto-refresh options based on `canInteract` conditions and checkbox states (configurable interval)
 - 🚗 **Movement Support**: Menu stays open while moving (in vehicles, walking with peds, etc.)
 - 🔧 **Multiple Actions**: Support for exports, events, serverEvents, commands, and callbacks
 - 🛡️ **Error Handling**: Complete protection against crashes with `pcall` wrappers
-- ⚡ **Optimized Performance**: 0ms CPU when inactive, efficient resource usage
+- ⚡ **Optimized Performance**: 0ms CPU when inactive, efficient resource usage, optimized loops and caching
 - 🔄 **Auto-cleanup**: Automatic removal of options when resources stop
 - 🎛️ **Handler Methods**: Dynamic control of registered options (change label, icon, enable/disable, etc.)
 - 🔗 **Method Chaining**: Chain multiple handler methods for cleaner code
 - ⚙️ **Configurable MAP Objects**: Add custom static object models in config for custom mapping support
+- 🌌 **Sky/Ground Targeting**: Register options for clicking in the sky or on the ground
+- 🔌 **Bridge System**: Automatic compatibility layer for `ox_target` and `qb-target` exports
 
 ---
 
 ## 🚀 Installation
 
-1. **Download the Resource**: Obtain the `nbl-target` resource files
+1. **Download the Resource**: Obtain the `nbl-target` resource files from [GitHub](https://github.com/your-username/nbl-target) or [FiveM Keymaster](https://keymaster.fivem.net/)
 2. **Place in Resources Folder**: Drag and drop the `nbl-target` folder into your server's `resources` directory
    ```
    server-data/resources/[your-category]/nbl-target/
@@ -107,9 +123,19 @@ NBL Target is a comprehensive targeting system that allows players to interact w
    ```cfg
    ensure nbl-target
    ```
-4. **Restart Server**: Restart your FiveM server to load the resource
+4. **Replace Existing Targets (Optional)**: If you're replacing `ox_target` or `qb-target`, simply remove them from your `server.cfg`:
+   ```cfg
+   # Remove or comment out these lines:
+   # ensure ox_target
+   # ensure qb-target
+   
+   ensure nbl-target
+   ```
+5. **Restart Server**: Restart your FiveM server to load the resource
 
-**Note**: Ensure your server is running on `fx_version 'cerulean'` or newer.
+**Note**: 
+- Ensure your server is running on `fx_version 'cerulean'` or newer
+- **No code changes needed** - existing scripts using `ox_target` or `qb-target` will work automatically!
 
 ---
 
@@ -345,6 +371,163 @@ Config.MapObjectModels = {
   - Lower = more precise targeting required
 
 **Note:** Objects registered via `addModel()` are automatically included in the search, so you don't need to add them to `Config.MapObjectModels`.
+
+---
+
+## 🔌 Compatibility with ox_target and qb-target
+
+NBL Target includes a **built-in compatibility layer** (bridge system) that automatically intercepts exports from `ox_target` and `qb-target`, converting them to work with NBL Target. This means you can use NBL Target as a **drop-in replacement** without modifying any existing scripts!
+
+### How It Works
+
+The bridge system automatically:
+1. Intercepts exports from `ox_target` and `qb-target` via FiveM's export handler system
+2. Converts option formats from the original target system to NBL Target's format
+3. Calls the corresponding NBL Target exports
+4. Returns compatible handler objects
+
+### Supported Exports
+
+#### ox_target Compatibility
+
+✅ **Fully Supported:**
+- `addGlobalVehicle(options)` - Register options for all vehicles
+- `addGlobalPed(options)` - Register options for all NPCs
+- `addGlobalPlayer(options)` - Register options for all players
+- `addGlobalObject(options)` - Register options for all objects
+- `addModel(models, options)` - Register options for specific models
+- `addEntity(netIds, options)` - Register options for networked entities
+- `addLocalEntity(entities, options)` - Register options for local entities
+- `removeGlobalVehicle(ids)` - Remove vehicle options
+- `removeGlobalPed(ids)` - Remove ped options
+- `removeGlobalPlayer(ids)` - Remove player options
+- `removeGlobalObject(ids)` - Remove object options
+- `removeModel(models, ids)` - Remove model options
+- `removeEntity(netIds, ids)` - Remove entity options
+- `removeLocalEntity(entities, ids)` - Remove local entity options
+- `disableTargeting(state)` - Enable/disable targeting
+- `isActive()` - Check if targeting is active
+
+❌ **Not Supported (Zones):**
+- `addSphereZone(data)` - Returns `nil` (zones not supported)
+- `addBoxZone(data)` - Returns `nil` (zones not supported)
+- `addPolyZone(data)` - Returns `nil` (zones not supported)
+- `removeZone(id)` - Returns `nil` (zones not supported)
+
+#### qb-target / qtarget Compatibility
+
+✅ **Fully Supported:**
+- `AddGlobalVehicle(options)` - Register options for all vehicles
+- `RemoveGlobalVehicle(labels)` - Remove vehicle options by label
+- `AddGlobalPed(options)` - Register options for all NPCs
+- `RemoveGlobalPed(labels)` - Remove ped options by label
+- `AddGlobalPlayer(options)` - Register options for all players
+- `RemoveGlobalPlayer(labels)` - Remove player options by label
+- `AddGlobalObject(options)` - Register options for all objects
+- `RemoveGlobalObject(labels)` - Remove object options by label
+- `AddTargetModel(models, options)` - Register options for specific models
+- `RemoveTargetModel(models, labels)` - Remove model options by label
+- `AddTargetEntity(entities, options)` - Register options for entities
+- `RemoveTargetEntity(entities, labels)` - Remove entity options by label
+- `AddTargetBone(bones, options)` - Register options for vehicle bones
+- `RemoveTargetBone(bones, labels)` - Remove bone options by label
+- `Ped(options)` - Alias for `AddGlobalPed`
+- `RemovePed(labels)` - Alias for `RemoveGlobalPed`
+- `Vehicle(options)` - Alias for `AddGlobalVehicle`
+- `RemoveVehicle(labels)` - Alias for `RemoveGlobalVehicle`
+- `Object(options)` - Alias for `AddGlobalObject`
+- `RemoveObject(labels)` - Alias for `RemoveGlobalObject`
+- `Player(options)` - Alias for `AddGlobalPlayer`
+- `RemovePlayer(labels)` - Alias for `RemoveGlobalPlayer`
+- `IsTargetActive()` - Check if targeting is active
+- `IsTargetSuccess()` - Check if menu is open
+- `GetTargetEntity()` - Get currently selected entity
+
+❌ **Not Supported (Zones):**
+- `AddBoxZone(...)` - Returns `nil` (zones not supported)
+- `AddPolyZone(...)` - Returns `nil` (zones not supported)
+- `AddCircleZone(...)` - Returns `nil` (zones not supported)
+- `RemoveZone(name)` - Returns `nil` (zones not supported)
+
+### Option Format Conversion
+
+The bridge automatically converts option formats:
+
+**ox_target → NBL Target:**
+- `label` / `name` → `label` and `name`
+- `icon` → `icon`
+- `distance` → `distance`
+- `canInteract` → `canInteract`
+- `onSelect` → `onSelect`
+- `event` → `event`
+- `serverEvent` → `serverEvent`
+- `command` → `command`
+- `shouldClose` → `shouldClose`
+- `groups` → Integrated into `canInteract` function
+
+**qb-target → NBL Target:**
+- `options.options` or `options` → Array of options
+- `label` / `name` → `label` and `name`
+- `icon` → `icon`
+- `distance` → `distance`
+- `action` → `onSelect`
+- `event` + `type` → `event`, `serverEvent`, or `command`
+- `job` → Integrated into `canInteract` function
+- `item` / `required_item` → Not converted (use NBL Target's native system)
+
+### Migration Example
+
+**Before (ox_target):**
+```lua
+exports.ox_target:addGlobalVehicle({
+    {
+        label = "Enter Vehicle",
+        icon = "fas fa-car-side",
+        onSelect = function(entity)
+            TaskEnterVehicle(PlayerPedId(), entity, 10000, -1, 1.0, 1, 0)
+        end
+    }
+})
+```
+
+**After (No changes needed!):**
+```lua
+-- Same code works with nbl-target!
+exports.ox_target:addGlobalVehicle({
+    {
+        label = "Enter Vehicle",
+        icon = "fas fa-car-side",
+        onSelect = function(entity)
+            TaskEnterVehicle(PlayerPedId(), entity, 10000, -1, 1.0, 1, 0)
+        end
+    }
+})
+```
+
+**Or use NBL Target's native exports:**
+```lua
+exports['nbl-target']:addGlobalVehicle({
+    {
+        label = "Enter Vehicle",
+        icon = "fas fa-car-side",
+        onSelect = function(entity)
+            TaskEnterVehicle(PlayerPedId(), entity, 10000, -1, 1.0, 1, 0)
+        end
+    }
+})
+```
+
+### Important Notes
+
+1. **Zones Not Supported**: Zone-based targeting (`AddBoxZone`, `AddPolyZone`, etc.) is not supported. If your scripts use zones, you'll need to migrate to entity-based targeting.
+
+2. **Automatic Conversion**: The bridge handles all option format conversions automatically - you don't need to modify your existing code.
+
+3. **Handler Objects**: Returned handler objects are compatible with the original target system's API.
+
+4. **Performance**: The bridge adds minimal overhead - option conversion happens once during registration.
+
+5. **Error Handling**: All conversions are wrapped in `pcall` for safety.
 
 ---
 
@@ -1745,6 +1928,9 @@ nbl-target/
 │   │   ├── raycast.lua         # Raycast system for entity detection
 │   │   ├── entity.lua           # Entity utilities and type detection
 │   │   └── visual.lua           # Visual feedback (outline, markers)
+│   ├── bridge/
+│   │   ├── ox_target.lua       # ox_target compatibility bridge
+│   │   └── qb_target.lua       # qb-target / qtarget compatibility bridge
 │   ├── registry.lua            # Option registration and management
 │   ├── nui.lua                  # NUI bridge (Lua ↔ JavaScript)
 │   └── main.lua                 # Main client script (activation, input)
@@ -1754,10 +1940,7 @@ nbl-target/
 │   │   └── style.css           # Menu styling (dark theme, animations, checkboxes)
 │   └── js/
 │       └── app.js               # Menu logic (open/close, sub-menus, checkboxes, refresh)
-├── docs/                        # Documentation files
-│   ├── NebulaTarget.md         # Main documentation page
-│   ├── Installation.md         # Installation guide
-│   └── Exports.md              # Complete exports reference
+├── docs/                        # Documentation files (if applicable)
 ├── fxmanifest.lua              # Resource manifest
 ├── LICENSE                      # License file
 └── README.md                    # This file
@@ -1889,4 +2072,39 @@ See `LICENSE` file for details.
 
 ---
 
+## 🔍 Search Keywords
+
+This resource can be found by searching for:
+- `nbl-target`
+- `nbl target`
+- `nebula target`
+- `ox_target replacement`
+- `qb-target replacement`
+- `qtarget replacement`
+- `fivem target system`
+- `fivem context menu`
+- `fivem targeting`
+- `ox_target alternative`
+- `qb-target alternative`
+- `compatible target system`
+- `drop-in target replacement`
+
+---
+
+## 📝 Changelog
+
+### Version 2.0.0
+- ✅ Added full compatibility with `ox_target` and `qb-target` via bridge system
+- ✅ Added `addGlobalSky()` and `addGlobalGround()` exports for sky/ground targeting
+- ✅ Optimized performance (lowered refresh interval, optimized loops, caching)
+- ✅ Fixed configuration loading bugs (lazy-loading pattern)
+- ✅ Improved error handling and stability
+- ✅ Enhanced documentation
+
+---
+
 **Developed with ❤️ for the FiveM community**
+
+**🔗 Links:**
+- [GitHub Repository](https://github.com/your-username/nbl-target) *(Update with your actual GitHub link)*
+- [FiveM Keymaster](https://keymaster.fivem.net/) *(Update with your actual Keymaster link if available)*

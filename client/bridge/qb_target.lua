@@ -1,54 +1,37 @@
-local function RegisterExport(exportName, func)
-    AddEventHandler(('__cfx_export_qb-target_%s'):format(exportName), function(setCB)
-        setCB(func)
+local function RegisterExport(name, fn)
+    AddEventHandler(('__cfx_export_qb-target_%s'):format(name), function(setCB)
+        setCB(fn)
     end)
 end
 
-local function RegisterQTargetExport(exportName, func)
-    AddEventHandler(('__cfx_export_qtarget_%s'):format(exportName), function(setCB)
-        setCB(func)
+local function RegisterQTargetExport(name, fn)
+    AddEventHandler(('__cfx_export_qtarget_%s'):format(name), function(setCB)
+        setCB(fn)
     end)
 end
 
-local zoneWarningShown = false
-
-local function WarnZoneNotSupported(zoneName)
-    if not zoneWarningShown then
-        print('^3[nbl-target] WARNING: Zones are not supported by NBL Target.^7')
-        print('^3[nbl-target] The following zone exports return nil: AddBoxZone, AddPolyZone, AddCircleZone, RemoveZone^7')
-        print('^3[nbl-target] Consider using entity-based targeting instead (AddTargetModel, AddTargetEntity).^7')
-        zoneWarningShown = true
-    end
-    if zoneName then
-        print('^1[nbl-target] Zone "' .. tostring(zoneName) .. '" was not created (zones not supported).^7')
-    end
-end
-
-local function BuildDataObject(entity, worldPos, opt)
+local function CreateDataObject(entity, coords, opt)
     local playerPed = PlayerPedId()
     local playerCoords = GetEntityCoords(playerPed)
-    local entityCoords = worldPos or (entity and entity ~= 0 and GetEntityCoords(entity) or playerCoords)
-    local distance = entity and entity ~= 0 and #(playerCoords - entityCoords) or 0.0
-    local entityModel = entity and entity ~= 0 and GetEntityModel(entity) or nil
-    local entityType = entity and entity ~= 0 and GetEntityType(entity) or nil
+    local entityCoords = coords or (entity and entity ~= 0 and GetEntityCoords(entity) or playerCoords)
+    local dist = entity and entity ~= 0 and #(playerCoords - entityCoords) or 0.0
+    local model = entity and entity ~= 0 and GetEntityModel(entity) or nil
     
     local data = {
-        entity = entity,
+        entity = entity or 0,
         coords = entityCoords,
-        distance = distance,
-        model = entityModel,
-        type = entityType,
-        hash = entityModel,
+        distance = dist,
+        model = model,
+        hash = model,
+        type = entity and entity ~= 0 and GetEntityType(entity) or nil,
         bone = nil,
         name = opt and (opt.name or opt.label) or nil,
-        label = opt and opt.label or nil,
-        icon = opt and opt.icon or nil,
-        options = opt
+        label = opt and opt.label or nil
     }
     
     if opt then
         for k, v in pairs(opt) do
-            if data[k] == nil then
+            if data[k] == nil and type(v) ~= "function" then
                 data[k] = v
             end
         end
@@ -57,638 +40,332 @@ local function BuildDataObject(entity, worldPos, opt)
     return data
 end
 
-local function WrapAction(originalAction, opt)
-    if not originalAction or type(originalAction) ~= "function" then
-        return nil
-    end
+local function ConvertOption(opt, defaultDist)
+    local converted = {
+        label = opt.label or opt.name,
+        name = opt.name or opt.label,
+        icon = opt.icon,
+        distance = opt.distance or defaultDist,
+        shouldClose = true
+    }
     
-    return function(entity, worldPos, registration)
-        local data = BuildDataObject(entity, worldPos, opt)
-        return originalAction(data)
-    end
-end
-
-local function WrapCanInteract(originalCanInteract, opt)
-    if not originalCanInteract or type(originalCanInteract) ~= "function" then
-        return nil
-    end
-    
-    return function(entity, distance, worldPos, name)
-        local data = BuildDataObject(entity, worldPos, opt)
-        data.distance = distance
-        data.name = name or (opt and opt.name)
-        
-        local success, result = pcall(originalCanInteract, entity, distance, data)
-        if not success then
-            success, result = pcall(originalCanInteract, data)
+    if opt.canInteract then
+        local original = opt.canInteract
+        converted.canInteract = function(entity, distance, coords, name)
+            local data = CreateDataObject(entity, coords, opt)
+            data.distance = distance
+            local ok, result = pcall(original, entity, distance, data)
+            if not ok then
+                ok, result = pcall(original, data)
+            end
+            return result
         end
-        
-        return result
-    end
-end
-
-local function WrapEvent(eventName, opt)
-    if not eventName then return nil end
-    
-    return function(entity, worldPos, registration)
-        local data = BuildDataObject(entity, worldPos, opt)
-        TriggerEvent(eventName, data)
-    end
-end
-
-local function WrapServerEvent(eventName, opt)
-    if not eventName then return nil end
-    
-    return function(entity, worldPos, registration)
-        local data = BuildDataObject(entity, worldPos, opt)
-        TriggerServerEvent(eventName, data)
-    end
-end
-
-local function ConvertOptions(options, defaultDistance)
-    if not options then return {} end
-    
-    local optionsArray = options.options or options
-    
-    if type(optionsArray) ~= "table" then
-        return {}
     end
     
-    local converted = {}
-    local idx = 0
-    
-    for k, opt in pairs(optionsArray) do
-        if type(opt) == "table" then
-            idx = idx + 1
-            
-            local newOpt = {
-                label = opt.label or opt.name,
-                name = opt.name or opt.label,
-                icon = opt.icon,
-                distance = opt.distance or defaultDistance,
-                canInteract = WrapCanInteract(opt.canInteract, opt),
-                shouldClose = true
-            }
-            
-            if opt.action then
-                newOpt.onSelect = WrapAction(opt.action, opt)
-            elseif opt.event then
-                if opt.type == "server" then
-                    newOpt.onSelect = WrapServerEvent(opt.event, opt)
-                elseif opt.type == "command" then
-                    newOpt.command = opt.event
-                else
-                    newOpt.onSelect = WrapEvent(opt.event, opt)
-                end
+    if opt.action then
+        local original = opt.action
+        converted.onSelect = function(entity, coords, reg)
+            local data = CreateDataObject(entity, coords, opt)
+            local ok, err = pcall(original, data)
+            if not ok then
+                print('^1[nbl-target] qb-target bridge action error: ' .. tostring(err) .. '^7')
             end
-            
-            if newOpt.onSelect then
-                newOpt.event = nil
-                newOpt.serverEvent = nil
+        end
+    elseif opt.event then
+        if opt.type == "server" then
+            converted.onSelect = function(entity, coords, reg)
+                local data = CreateDataObject(entity, coords, opt)
+                TriggerServerEvent(opt.event, data)
             end
-            
-            if opt.job then
-                local wrappedCanInteract = newOpt.canInteract
-                newOpt.canInteract = function(entity, distance, worldPos, name)
-                    if wrappedCanInteract then
-                        local success, result = pcall(wrappedCanInteract, entity, distance, worldPos, name)
-                        if not success or not result then
-                            return false
-                        end
-                    end
-                    return true
-                end
+        elseif opt.type == "command" then
+            converted.command = opt.event
+        else
+            converted.onSelect = function(entity, coords, reg)
+                local data = CreateDataObject(entity, coords, opt)
+                TriggerEvent(opt.event, data)
             end
-            
-            converted[idx] = newOpt
         end
     end
     
     return converted
 end
 
+local function ConvertOptions(options, defaultDist)
+    if not options then return {} end
+    local opts = options.options or options
+    if type(opts) ~= "table" then return {} end
+    
+    local result = {}
+    local idx = 0
+    for _, opt in pairs(opts) do
+        if type(opt) == "table" then
+            idx = idx + 1
+            result[idx] = ConvertOption(opt, defaultDist)
+        end
+    end
+    return result
+end
+
 local handlers = {}
 
-local function RegisterHandler(name, handler)
-    if not handlers[name] then
-        handlers[name] = {}
-    end
-    handlers[name][#handlers[name] + 1] = handler
+local function StoreHandler(key, handler, label)
+    if not handlers[key] then handlers[key] = {} end
+    handlers[key][#handlers[key] + 1] = {h = handler, l = label}
 end
 
-local function RemoveHandlers(name, labels)
-    if not handlers[name] then return end
-    
+local function RemoveHandlers(key, labels)
+    if not handlers[key] then return end
     if labels then
-        if type(labels) ~= "table" then
-            labels = { labels }
-        end
-        
+        if type(labels) ~= "table" then labels = {labels} end
         local labelSet = {}
-        for _, label in ipairs(labels) do
-            labelSet[label] = true
-        end
-        
-        local newHandlers = {}
-        for _, handler in ipairs(handlers[name]) do
-            if handler.label and labelSet[handler.label] then
-                if handler.handler and handler.handler.remove then
-                    handler.handler:remove()
+        for i = 1, #labels do labelSet[labels[i]] = true end
+        local keep = {}
+        for i = 1, #handlers[key] do
+            local item = handlers[key][i]
+            if item and item.l and labelSet[item.l] then
+                if item.h and type(item.h.remove) == "function" then
+                    pcall(item.h.remove, item.h)
                 end
-            else
-                newHandlers[#newHandlers + 1] = handler
+            elseif item then
+                keep[#keep + 1] = item
             end
         end
-        handlers[name] = newHandlers
+        handlers[key] = #keep > 0 and keep or nil
     else
-        for _, handler in ipairs(handlers[name]) do
-            if handler.handler and handler.handler.remove then
-                handler.handler:remove()
+        for i = 1, #handlers[key] do
+            local item = handlers[key][i]
+            if item and item.h and type(item.h.remove) == "function" then
+                pcall(item.h.remove, item.h)
             end
         end
-        handlers[name] = {}
+        handlers[key] = nil
     end
 end
 
-RegisterExport('AddTargetEntity', function(entities, options)
-    local distance = options.distance
-    local converted = ConvertOptions(options, distance)
-    
-    if type(entities) ~= "table" then
-        entities = { entities }
-    end
-    
-    for _, entity in ipairs(entities) do
+local function WarnZone(name)
+    print('^3[nbl-target] Zone "' .. tostring(name) .. '" not supported - use entity targeting instead^7')
+end
+
+local function AddTargetEntity(entities, options)
+    local dist = options.distance
+    local converted = ConvertOptions(options, dist)
+    if type(entities) ~= "table" then entities = {entities} end
+    for e = 1, #entities do
+        local entity = entities[e]
         if entity and entity ~= 0 then
-            for _, opt in ipairs(converted) do
-                local handler = nil
+            for i = 1, #converted do
+                local h
                 if NetworkGetEntityIsNetworked(entity) then
-                    handler = exports['nbl-target']:addEntity(entity, opt)
+                    h = exports['nbl-target']:addEntity(entity, converted[i])
                 else
-                    handler = exports['nbl-target']:addLocalEntity(entity, opt)
+                    h = exports['nbl-target']:addLocalEntity(entity, converted[i])
                 end
-                
-                if handler then
-                    RegisterHandler("entity_" .. entity, { handler = handler, label = opt.label })
-                end
+                if h then StoreHandler("entity_" .. entity, h, converted[i].label) end
             end
         end
     end
-end)
-RegisterQTargetExport('AddTargetEntity', function(entities, options)
-    local distance = options.distance
-    local converted = ConvertOptions(options, distance)
-    
-    if type(entities) ~= "table" then
-        entities = { entities }
-    end
-    
-    for _, entity in ipairs(entities) do
-        if entity and entity ~= 0 then
-            for _, opt in ipairs(converted) do
-                local handler = nil
-                if NetworkGetEntityIsNetworked(entity) then
-                    handler = exports['nbl-target']:addEntity(entity, opt)
-                else
-                    handler = exports['nbl-target']:addLocalEntity(entity, opt)
-                end
-                
-                if handler then
-                    RegisterHandler("entity_" .. entity, { handler = handler, label = opt.label })
-                end
-            end
+end
+
+local function RemoveTargetEntity(entities, labels)
+    if entities == nil then return end
+    if type(entities) ~= "table" then entities = {entities} end
+    for e = 1, #entities do
+        local entity = entities[e]
+        if entity ~= nil then
+            RemoveHandlers("entity_" .. entity, labels)
         end
     end
-end)
+end
 
-RegisterExport('RemoveTargetEntity', function(entities, labels)
-    if type(entities) ~= "table" then
-        entities = { entities }
-    end
-    
-    for _, entity in ipairs(entities) do
-        RemoveHandlers("entity_" .. entity, labels)
-    end
-end)
-RegisterQTargetExport('RemoveTargetEntity', function(entities, labels)
-    if type(entities) ~= "table" then
-        entities = { entities }
-    end
-    
-    for _, entity in ipairs(entities) do
-        RemoveHandlers("entity_" .. entity, labels)
-    end
-end)
-
-RegisterExport('AddTargetModel', function(models, options)
-    local distance = options.distance
-    local converted = ConvertOptions(options, distance)
-    
-    if type(models) ~= "table" then
-        models = { models }
-    end
-    
-    for _, model in ipairs(models) do
-        local modelHash = type(model) == "string" and GetHashKey(model) or model
-        
-        for _, opt in ipairs(converted) do
-            local handler = exports['nbl-target']:addModel(modelHash, opt)
-            if handler then
-                RegisterHandler("model_" .. modelHash, { handler = handler, label = opt.label })
-            end
+local function AddTargetModel(models, options)
+    local dist = options.distance
+    local converted = ConvertOptions(options, dist)
+    if type(models) ~= "table" then models = {models} end
+    for m = 1, #models do
+        local model = models[m]
+        if type(model) == "string" then model = GetHashKey(model) end
+        for i = 1, #converted do
+            local h = exports['nbl-target']:addModel(model, converted[i])
+            if h then StoreHandler("model_" .. model, h, converted[i].label) end
         end
     end
-end)
-RegisterQTargetExport('AddTargetModel', function(models, options)
-    local distance = options.distance
-    local converted = ConvertOptions(options, distance)
-    
-    if type(models) ~= "table" then
-        models = { models }
+end
+
+local function RemoveTargetModel(models, labels)
+    if type(models) ~= "table" then models = {models} end
+    for m = 1, #models do
+        local model = models[m]
+        if type(model) == "string" then model = GetHashKey(model) end
+        RemoveHandlers("model_" .. model, labels)
     end
-    
-    for _, model in ipairs(models) do
-        local modelHash = type(model) == "string" and GetHashKey(model) or model
-        
-        for _, opt in ipairs(converted) do
-            local handler = exports['nbl-target']:addModel(modelHash, opt)
-            if handler then
-                RegisterHandler("model_" .. modelHash, { handler = handler, label = opt.label })
-            end
-        end
+end
+
+local function AddGlobalPed(options)
+    local dist = options.distance
+    local converted = ConvertOptions(options, dist)
+    for i = 1, #converted do
+        local h = exports['nbl-target']:addGlobalPed(converted[i])
+        if h then StoreHandler("globalPed", h, converted[i].label) end
     end
-end)
+end
 
-RegisterExport('RemoveTargetModel', function(models, labels)
-    if type(models) ~= "table" then
-        models = { models }
+local function AddGlobalVehicle(options)
+    local dist = options.distance
+    local converted = ConvertOptions(options, dist)
+    for i = 1, #converted do
+        local h = exports['nbl-target']:addGlobalVehicle(converted[i])
+        if h then StoreHandler("globalVehicle", h, converted[i].label) end
     end
-    
-    for _, model in ipairs(models) do
-        local modelHash = type(model) == "string" and GetHashKey(model) or model
-        RemoveHandlers("model_" .. modelHash, labels)
+end
+
+local function AddGlobalObject(options)
+    local dist = options.distance
+    local converted = ConvertOptions(options, dist)
+    for i = 1, #converted do
+        local h = exports['nbl-target']:addGlobalObject(converted[i])
+        if h then StoreHandler("globalObject", h, converted[i].label) end
     end
-end)
-RegisterQTargetExport('RemoveTargetModel', function(models, labels)
-    if type(models) ~= "table" then
-        models = { models }
+end
+
+local function AddGlobalPlayer(options)
+    local dist = options.distance
+    local converted = ConvertOptions(options, dist)
+    for i = 1, #converted do
+        local h = exports['nbl-target']:addGlobalPlayer(converted[i])
+        if h then StoreHandler("globalPlayer", h, converted[i].label) end
     end
-    
-    for _, model in ipairs(models) do
-        local modelHash = type(model) == "string" and GetHashKey(model) or model
-        RemoveHandlers("model_" .. modelHash, labels)
+end
+
+local function AddTargetBone(bones, options)
+    local dist = options.distance
+    local converted = ConvertOptions(options, dist)
+    if type(bones) ~= "table" then bones = {bones} end
+    for i = 1, #converted do
+        converted[i].bones = bones
+        local h = exports['nbl-target']:addGlobalVehicle(converted[i])
+        if h then StoreHandler("bones", h, converted[i].label) end
     end
-end)
+end
 
-RegisterExport('AddGlobalPed', function(options)
-    local distance = options.distance
-    local converted = ConvertOptions(options, distance)
-    
-    for _, opt in ipairs(converted) do
-        local handler = exports['nbl-target']:addGlobalPed(opt)
-        if handler then
-            RegisterHandler("globalPed", { handler = handler, label = opt.label })
-        end
-    end
-end)
-RegisterQTargetExport('Ped', function(options)
-    local distance = options.distance
-    local converted = ConvertOptions(options, distance)
-    
-    for _, opt in ipairs(converted) do
-        local handler = exports['nbl-target']:addGlobalPed(opt)
-        if handler then
-            RegisterHandler("globalPed", { handler = handler, label = opt.label })
-        end
-    end
-end)
-
-RegisterExport('RemoveGlobalPed', function(labels)
-    RemoveHandlers("globalPed", labels)
-end)
-RegisterQTargetExport('RemovePed', function(labels)
-    RemoveHandlers("globalPed", labels)
-end)
-
-RegisterExport('AddGlobalVehicle', function(options)
-    local distance = options.distance
-    local converted = ConvertOptions(options, distance)
-    
-    for _, opt in ipairs(converted) do
-        local handler = exports['nbl-target']:addGlobalVehicle(opt)
-        if handler then
-            RegisterHandler("globalVehicle", { handler = handler, label = opt.label })
-        end
-    end
-end)
-RegisterQTargetExport('Vehicle', function(options)
-    local distance = options.distance
-    local converted = ConvertOptions(options, distance)
-    
-    for _, opt in ipairs(converted) do
-        local handler = exports['nbl-target']:addGlobalVehicle(opt)
-        if handler then
-            RegisterHandler("globalVehicle", { handler = handler, label = opt.label })
-        end
-    end
-end)
-
-RegisterExport('RemoveGlobalVehicle', function(labels)
-    RemoveHandlers("globalVehicle", labels)
-end)
-RegisterQTargetExport('RemoveVehicle', function(labels)
-    RemoveHandlers("globalVehicle", labels)
-end)
-
-RegisterExport('AddGlobalObject', function(options)
-    local distance = options.distance
-    local converted = ConvertOptions(options, distance)
-    
-    for _, opt in ipairs(converted) do
-        local handler = exports['nbl-target']:addGlobalObject(opt)
-        if handler then
-            RegisterHandler("globalObject", { handler = handler, label = opt.label })
-        end
-    end
-end)
-RegisterQTargetExport('Object', function(options)
-    local distance = options.distance
-    local converted = ConvertOptions(options, distance)
-    
-    for _, opt in ipairs(converted) do
-        local handler = exports['nbl-target']:addGlobalObject(opt)
-        if handler then
-            RegisterHandler("globalObject", { handler = handler, label = opt.label })
-        end
-    end
-end)
-
-RegisterExport('RemoveGlobalObject', function(labels)
-    RemoveHandlers("globalObject", labels)
-end)
-RegisterQTargetExport('RemoveObject', function(labels)
-    RemoveHandlers("globalObject", labels)
-end)
-
-RegisterExport('AddGlobalPlayer', function(options)
-    local distance = options.distance
-    local converted = ConvertOptions(options, distance)
-    
-    for _, opt in ipairs(converted) do
-        local handler = exports['nbl-target']:addGlobalPlayer(opt)
-        if handler then
-            RegisterHandler("globalPlayer", { handler = handler, label = opt.label })
-        end
-    end
-end)
-RegisterQTargetExport('Player', function(options)
-    local distance = options.distance
-    local converted = ConvertOptions(options, distance)
-    
-    for _, opt in ipairs(converted) do
-        local handler = exports['nbl-target']:addGlobalPlayer(opt)
-        if handler then
-            RegisterHandler("globalPlayer", { handler = handler, label = opt.label })
-        end
-    end
-end)
-
-RegisterExport('RemoveGlobalPlayer', function(labels)
-    RemoveHandlers("globalPlayer", labels)
-end)
-RegisterQTargetExport('RemovePlayer', function(labels)
-    RemoveHandlers("globalPlayer", labels)
-end)
-
-RegisterExport('AddTargetBone', function(bones, options)
-    local distance = options.distance
-    local converted = ConvertOptions(options, distance)
-    
-    if type(bones) ~= "table" then
-        bones = { bones }
-    end
-    
-    for _, opt in ipairs(converted) do
-        opt.bones = bones
-        local handler = exports['nbl-target']:addGlobalVehicle(opt)
-        if handler then
-            RegisterHandler("bones", { handler = handler, label = opt.label })
-        end
-    end
-end)
-RegisterQTargetExport('AddTargetBone', function(bones, options)
-    local distance = options.distance
-    local converted = ConvertOptions(options, distance)
-    
-    if type(bones) ~= "table" then
-        bones = { bones }
-    end
-    
-    for _, opt in ipairs(converted) do
-        opt.bones = bones
-        local handler = exports['nbl-target']:addGlobalVehicle(opt)
-        if handler then
-            RegisterHandler("bones", { handler = handler, label = opt.label })
-        end
-    end
-end)
-
-RegisterExport('RemoveTargetBone', function(bones, labels)
-    RemoveHandlers("bones", labels)
-end)
-RegisterQTargetExport('RemoveTargetBone', function(bones, labels)
-    RemoveHandlers("bones", labels)
-end)
-
-RegisterExport('AddBoxZone', function(name, center, length, width, options, targetoptions)
-    WarnZoneNotSupported(name)
-    return nil
-end)
-RegisterQTargetExport('AddBoxZone', function(name, center, length, width, options, targetoptions)
-    WarnZoneNotSupported(name)
-    return nil
-end)
-
-RegisterExport('AddPolyZone', function(name, points, options, targetoptions)
-    WarnZoneNotSupported(name)
-    return nil
-end)
-RegisterQTargetExport('AddPolyZone', function(name, points, options, targetoptions)
-    WarnZoneNotSupported(name)
-    return nil
-end)
-
-RegisterExport('AddCircleZone', function(name, center, radius, options, targetoptions)
-    WarnZoneNotSupported(name)
-    return nil
-end)
-RegisterQTargetExport('AddCircleZone', function(name, center, radius, options, targetoptions)
-    WarnZoneNotSupported(name)
-    return nil
-end)
-
-RegisterExport('RemoveZone', function(name)
-    return nil
-end)
-RegisterQTargetExport('RemoveZone', function(name)
-    return nil
-end)
-
-RegisterExport('SpawnPed', function(data)
-    print('^3[nbl-target] WARNING: SpawnPed is not supported by NBL Target.^7')
-    return nil
-end)
-
-RegisterExport('DeletePed', function(data)
-    return nil
-end)
-
-RegisterExport('IsTargetActive', function()
-    return exports['nbl-target']:isActive()
-end)
-RegisterQTargetExport('IsTargetActive', function()
-    return exports['nbl-target']:isActive()
-end)
-
-RegisterExport('IsTargetSuccess', function()
-    return exports['nbl-target']:isMenuOpen()
-end)
-RegisterQTargetExport('IsTargetSuccess', function()
-    return exports['nbl-target']:isMenuOpen()
-end)
-
-RegisterExport('GetEntityZone', function(entity)
-    return nil
-end)
-RegisterQTargetExport('GetEntityZone', function(entity)
-    return nil
-end)
-
-RegisterExport('GetTargetEntity', function()
-    return exports['nbl-target']:getSelectedEntity()
-end)
-RegisterQTargetExport('GetTargetEntity', function()
-    return exports['nbl-target']:getSelectedEntity()
-end)
-
-RegisterExport('AddEntityZone', function(name, entity, options, targetoptions)
-    local distance = targetoptions and targetoptions.distance or (options and options.distance) or 2.0
-    local converted = ConvertOptions(targetoptions or options, distance)
-    
+local function AddEntityZone(name, entity, options, targetoptions)
+    local opts = targetoptions or options
+    local dist = opts and opts.distance or 2.0
+    local converted = ConvertOptions(opts, dist)
     if entity and entity ~= 0 then
-        for _, opt in ipairs(converted) do
-            local handler = nil
+        for i = 1, #converted do
+            local h
             if NetworkGetEntityIsNetworked(entity) then
-                handler = exports['nbl-target']:addEntity(entity, opt)
+                h = exports['nbl-target']:addEntity(entity, converted[i])
             else
-                handler = exports['nbl-target']:addLocalEntity(entity, opt)
+                h = exports['nbl-target']:addLocalEntity(entity, converted[i])
             end
-            
-            if handler then
-                RegisterHandler("entityzone_" .. name, { handler = handler, label = opt.label })
-            end
+            if h then StoreHandler("entityzone_" .. name, h, converted[i].label) end
         end
     end
-end)
-RegisterQTargetExport('AddEntityZone', function(name, entity, options, targetoptions)
-    local distance = targetoptions and targetoptions.distance or (options and options.distance) or 2.0
-    local converted = ConvertOptions(targetoptions or options, distance)
-    
-    if entity and entity ~= 0 then
-        for _, opt in ipairs(converted) do
-            local handler = nil
-            if NetworkGetEntityIsNetworked(entity) then
-                handler = exports['nbl-target']:addEntity(entity, opt)
-            else
-                handler = exports['nbl-target']:addLocalEntity(entity, opt)
-            end
-            
-            if handler then
-                RegisterHandler("entityzone_" .. name, { handler = handler, label = opt.label })
-            end
-        end
-    end
-end)
+end
 
-RegisterExport('RemoveEntityZone', function(name)
-    RemoveHandlers("entityzone_" .. name, nil)
-end)
-RegisterQTargetExport('RemoveEntityZone', function(name)
-    RemoveHandlers("entityzone_" .. name, nil)
-end)
+RegisterExport('AddTargetEntity', AddTargetEntity)
+RegisterQTargetExport('AddTargetEntity', AddTargetEntity)
+
+RegisterExport('RemoveTargetEntity', RemoveTargetEntity)
+RegisterQTargetExport('RemoveTargetEntity', RemoveTargetEntity)
+
+RegisterExport('AddTargetModel', AddTargetModel)
+RegisterQTargetExport('AddTargetModel', AddTargetModel)
+
+RegisterExport('RemoveTargetModel', RemoveTargetModel)
+RegisterQTargetExport('RemoveTargetModel', RemoveTargetModel)
+
+RegisterExport('AddGlobalPed', AddGlobalPed)
+RegisterQTargetExport('Ped', AddGlobalPed)
+
+RegisterExport('RemoveGlobalPed', function(labels) RemoveHandlers("globalPed", labels) end)
+RegisterQTargetExport('RemovePed', function(labels) RemoveHandlers("globalPed", labels) end)
+
+RegisterExport('AddGlobalVehicle', AddGlobalVehicle)
+RegisterQTargetExport('Vehicle', AddGlobalVehicle)
+
+RegisterExport('RemoveGlobalVehicle', function(labels) RemoveHandlers("globalVehicle", labels) end)
+RegisterQTargetExport('RemoveVehicle', function(labels) RemoveHandlers("globalVehicle", labels) end)
+
+RegisterExport('AddGlobalObject', AddGlobalObject)
+RegisterQTargetExport('Object', AddGlobalObject)
+
+RegisterExport('RemoveGlobalObject', function(labels) RemoveHandlers("globalObject", labels) end)
+RegisterQTargetExport('RemoveObject', function(labels) RemoveHandlers("globalObject", labels) end)
+
+RegisterExport('AddGlobalPlayer', AddGlobalPlayer)
+RegisterQTargetExport('Player', AddGlobalPlayer)
+
+RegisterExport('RemoveGlobalPlayer', function(labels) RemoveHandlers("globalPlayer", labels) end)
+RegisterQTargetExport('RemovePlayer', function(labels) RemoveHandlers("globalPlayer", labels) end)
+
+RegisterExport('AddTargetBone', AddTargetBone)
+RegisterQTargetExport('AddTargetBone', AddTargetBone)
+
+RegisterExport('RemoveTargetBone', function(_, labels) RemoveHandlers("bones", labels) end)
+RegisterQTargetExport('RemoveTargetBone', function(_, labels) RemoveHandlers("bones", labels) end)
+
+RegisterExport('AddEntityZone', AddEntityZone)
+RegisterQTargetExport('AddEntityZone', AddEntityZone)
+
+RegisterExport('RemoveEntityZone', function(name) RemoveHandlers("entityzone_" .. name) end)
+RegisterQTargetExport('RemoveEntityZone', function(name) RemoveHandlers("entityzone_" .. name) end)
+
+RegisterExport('AddBoxZone', function(name) WarnZone(name) return nil end)
+RegisterQTargetExport('AddBoxZone', function(name) WarnZone(name) return nil end)
+
+RegisterExport('AddPolyZone', function(name) WarnZone(name) return nil end)
+RegisterQTargetExport('AddPolyZone', function(name) WarnZone(name) return nil end)
+
+RegisterExport('AddCircleZone', function(name) WarnZone(name) return nil end)
+RegisterQTargetExport('AddCircleZone', function(name) WarnZone(name) return nil end)
+
+RegisterExport('RemoveZone', function() return nil end)
+RegisterQTargetExport('RemoveZone', function() return nil end)
+
+RegisterExport('SpawnPed', function() print('^3[nbl-target] SpawnPed not supported^7') return nil end)
+RegisterExport('DeletePed', function() return nil end)
+
+RegisterExport('IsTargetActive', function() return exports['nbl-target']:isActive() end)
+RegisterQTargetExport('IsTargetActive', function() return exports['nbl-target']:isActive() end)
+
+RegisterExport('IsTargetSuccess', function() return exports['nbl-target']:isMenuOpen() end)
+RegisterQTargetExport('IsTargetSuccess', function() return exports['nbl-target']:isMenuOpen() end)
+
+RegisterExport('GetEntityZone', function() return nil end)
+RegisterQTargetExport('GetEntityZone', function() return nil end)
+
+RegisterExport('GetTargetEntity', function() return exports['nbl-target']:getSelectedEntity() end)
+RegisterQTargetExport('GetTargetEntity', function() return exports['nbl-target']:getSelectedEntity() end)
 
 RegisterExport('RemoveType', function(entityType, labels)
-    local handlerName = nil
-    if entityType == 1 then
-        handlerName = "globalPed"
-    elseif entityType == 2 then
-        handlerName = "globalVehicle"
-    elseif entityType == 3 then
-        handlerName = "globalObject"
-    elseif entityType == 4 then
-        handlerName = "globalPlayer"
-    end
-    
-    if handlerName then
-        RemoveHandlers(handlerName, labels)
-    end
+    local names = {[1] = "globalPed", [2] = "globalVehicle", [3] = "globalObject", [4] = "globalPlayer"}
+    if names[entityType] then RemoveHandlers(names[entityType], labels) end
 end)
 RegisterQTargetExport('RemoveType', function(entityType, labels)
-    local handlerName = nil
-    if entityType == 1 then
-        handlerName = "globalPed"
-    elseif entityType == 2 then
-        handlerName = "globalVehicle"
-    elseif entityType == 3 then
-        handlerName = "globalObject"
-    elseif entityType == 4 then
-        handlerName = "globalPlayer"
-    end
-    
-    if handlerName then
-        RemoveHandlers(handlerName, labels)
-    end
-end)
-
-RegisterExport('RaycastCamera', function(flag, coords)
-    local cursorPos = vector2(GetControlNormal(0, 239), GetControlNormal(0, 240))
-    local maxDistance = 100.0
-    local hit, worldPos, _, entity, material = Raycast:FromScreen(cursorPos, maxDistance, flag)
-    
-    if hit and entity and entity ~= 0 then
-        local distance = coords and #(coords - worldPos) or 0.0
-        local entityType = GetEntityType(entity)
-        return worldPos, distance, entity, entityType
-    end
-    
-    return coords or vector3(0, 0, 0), 0.0, 0, 0
-end)
-RegisterQTargetExport('RaycastCamera', function(flag, coords)
-    local cursorPos = vector2(GetControlNormal(0, 239), GetControlNormal(0, 240))
-    local maxDistance = 100.0
-    local hit, worldPos, _, entity, material = Raycast:FromScreen(cursorPos, maxDistance, flag)
-    
-    if hit and entity and entity ~= 0 then
-        local distance = coords and #(coords - worldPos) or 0.0
-        local entityType = GetEntityType(entity)
-        return worldPos, distance, entity, entityType
-    end
-    
-    return coords or vector3(0, 0, 0), 0.0, 0, 0
+    local names = {[1] = "globalPed", [2] = "globalVehicle", [3] = "globalObject", [4] = "globalPlayer"}
+    if names[entityType] then RemoveHandlers(names[entityType], labels) end
 end)
 
 RegisterExport('AllowTargeting', function(state)
-    if state == false then
-        exports['nbl-target']:disable()
-    else
-        exports['nbl-target']:enable()
-    end
+    if state == false then exports['nbl-target']:disable() else exports['nbl-target']:enable() end
+end)
+RegisterQTargetExport('AllowTargeting', function(state)
+    if state == false then exports['nbl-target']:disable() else exports['nbl-target']:enable() end
 end)
 
-RegisterQTargetExport('AllowTargeting', function(state)
-    if state == false then
-        exports['nbl-target']:disable()
-    else
-        exports['nbl-target']:enable()
+RegisterExport('RaycastCamera', function(flag, coords)
+    local hit, pos, _, entity = Raycast:FromScreen(vector2(GetControlNormal(0, 239), GetControlNormal(0, 240)), 100.0, flag)
+    if hit and entity and entity ~= 0 then
+        return pos, coords and #(coords - pos) or 0.0, entity, GetEntityType(entity)
     end
+    return coords or vector3(0, 0, 0), 0.0, 0, 0
+end)
+RegisterQTargetExport('RaycastCamera', function(flag, coords)
+    local hit, pos, _, entity = Raycast:FromScreen(vector2(GetControlNormal(0, 239), GetControlNormal(0, 240)), 100.0, flag)
+    if hit and entity and entity ~= 0 then
+        return pos, coords and #(coords - pos) or 0.0, entity, GetEntityType(entity)
+    end
+    return coords or vector3(0, 0, 0), 0.0, 0, 0
 end)

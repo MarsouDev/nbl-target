@@ -42,25 +42,18 @@ local function ConvertOptions(options)
     return converted
 end
 
-local function ConvertSingleOption(options)
-    if not options then return nil end
-    
-    if options[1] and type(options[1]) == "table" then
-        return ConvertOptions(options)
+local zoneWarningShown = false
+
+local function WarnZoneNotSupported(zoneName)
+    if not zoneWarningShown then
+        print('^3[nbl-target] WARNING: Zones are not supported by NBL Target.^7')
+        print('^3[nbl-target] The following zone exports return nil: addSphereZone, addBoxZone, addPolyZone, removeZone^7')
+        print('^3[nbl-target] Consider using entity-based targeting instead (addModel, addEntity, addLocalEntity).^7')
+        zoneWarningShown = true
     end
-    
-    return {
-        label = options.label or options.name,
-        name = options.name or options.label,
-        icon = options.icon,
-        distance = options.distance,
-        canInteract = options.canInteract,
-        onSelect = options.onSelect,
-        event = options.event,
-        serverEvent = options.serverEvent,
-        command = options.command,
-        shouldClose = options.shouldClose ~= false
-    }
+    if zoneName then
+        print('^1[nbl-target] Zone "' .. tostring(zoneName) .. '" was not created (zones not supported).^7')
+    end
 end
 
 RegisterExport('addGlobalVehicle', function(options)
@@ -275,14 +268,17 @@ RegisterExport('isActive', function()
 end)
 
 RegisterExport('addSphereZone', function(data)
+    WarnZoneNotSupported(data and data.name)
     return nil
 end)
 
 RegisterExport('addBoxZone', function(data)
+    WarnZoneNotSupported(data and data.name)
     return nil
 end)
 
 RegisterExport('addPolyZone', function(data)
+    WarnZoneNotSupported(data and data.name)
     return nil
 end)
 

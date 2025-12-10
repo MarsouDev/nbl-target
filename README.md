@@ -2,9 +2,7 @@
 
 A modern, feature-rich context menu and targeting system for FiveM. Built with performance, flexibility, and ease of use in mind.
 
-**🔗 Links:**
-- [GitHub Repository](https://github.com/your-username/nbl-target) *(Update with your actual GitHub link)*
-- [FiveM Keymaster](https://keymaster.fivem.net/) *(Update with your actual Keymaster link if available)*
+**🆓 Free & Open Source** - This resource is completely free and open source. No payments, no subscriptions, no hidden costs.
 
 **✨ Key Features:**
 - ✅ **Full Compatibility**: Drop-in replacement for `ox_target` and `qb-target` - works with existing scripts without modification
@@ -65,7 +63,7 @@ A modern, feature-rich context menu and targeting system for FiveM. Built with p
 
 ## Overview
 
-NBL Target is a comprehensive targeting system that allows players to interact with entities (vehicles, peds, objects, players, self, ground, sky) through a modern context menu interface. Hold the activation key (default: Left Alt) to enter targeting mode, then click on any entity to open a context menu with available interaction options.
+NBL Target is a **free and open source** comprehensive targeting system that allows players to interact with entities (vehicles, peds, objects, players, self, ground, sky) through a modern context menu interface. Hold the activation key (default: Left Alt) to enter targeting mode, then click on any entity to open a context menu with available interaction options.
 
 **Key Highlights:**
 - ✅ **MAP Props Support**: Automatically detects static world objects (ATMs, vending machines) even inside buildings
@@ -114,7 +112,7 @@ NBL Target is a comprehensive targeting system that allows players to interact w
 
 ## 🚀 Installation
 
-1. **Download the Resource**: Obtain the `nbl-target` resource files from [GitHub](https://github.com/your-username/nbl-target) or [FiveM Keymaster](https://keymaster.fivem.net/)
+1. **Download the Resource**: Obtain the `nbl-target` resource files (free and open source)
 2. **Place in Resources Folder**: Drag and drop the `nbl-target` folder into your server's `resources` directory
    ```
    server-data/resources/[your-category]/nbl-target/
@@ -2068,7 +2066,14 @@ exports['nbl-target']:addGlobalVehicle({
 
 ## License
 
-See `LICENSE` file for details.
+This resource is **free and open source**. See `LICENSE` file for complete license details.
+
+**Summary:**
+- ✅ **Free to use** - No cost, no payments, no subscriptions
+- ✅ **Open Source** - Source code is available and modifiable
+- ✅ **Free to modify** - You can customize it to your needs
+- ✅ **Free to distribute** - Share with others (with attribution)
+- ❌ **Not for commercial resale** - Cannot be sold or included in paid packs
 
 ---
 
@@ -2088,6 +2093,12 @@ This resource can be found by searching for:
 - `qb-target alternative`
 - `compatible target system`
 - `drop-in target replacement`
+- `free target system`
+- `open source target`
+- `free fivem target`
+- `open source fivem target`
+- `free ox_target alternative`
+- `free qb-target alternative`
 
 ---
 
@@ -2104,7 +2115,3 @@ This resource can be found by searching for:
 ---
 
 **Developed with ❤️ for the FiveM community**
-
-**🔗 Links:**
-- [GitHub Repository](https://github.com/your-username/nbl-target) *(Update with your actual GitHub link)*
-- [FiveM Keymaster](https://keymaster.fivem.net/) *(Update with your actual Keymaster link if available)*

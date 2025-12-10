@@ -54,6 +54,53 @@ local function WrapCanInteract(originalCanInteract)
     end
 end
 
+local function BuildDataObject(entity, worldPos, opt)
+    local playerPed = PlayerPedId()
+    local playerCoords = GetEntityCoords(playerPed)
+    local entityCoords = worldPos or (entity and entity ~= 0 and GetEntityCoords(entity) or playerCoords)
+    local distance = entity and entity ~= 0 and #(playerCoords - entityCoords) or 0.0
+    local entityModel = entity and entity ~= 0 and GetEntityModel(entity) or nil
+    local entityType = entity and entity ~= 0 and GetEntityType(entity) or nil
+    
+    local data = {
+        entity = entity,
+        coords = entityCoords,
+        distance = distance,
+        zone = nil,
+        name = opt and (opt.name or opt.label) or nil,
+        model = entityModel,
+        type = entityType
+    }
+    
+    if opt then
+        for k, v in pairs(opt) do
+            if data[k] == nil then
+                data[k] = v
+            end
+        end
+    end
+    
+    return data
+end
+
+local function WrapEvent(eventName, opt)
+    if not eventName then return nil end
+    
+    return function(entity, worldPos, registration)
+        local data = BuildDataObject(entity, worldPos, opt)
+        TriggerEvent(eventName, data)
+    end
+end
+
+local function WrapServerEvent(eventName, opt)
+    if not eventName then return nil end
+    
+    return function(entity, worldPos, registration)
+        local data = BuildDataObject(entity, worldPos, opt)
+        TriggerServerEvent(eventName, data)
+    end
+end
+
 local function ConvertOptions(options)
     if not options then return {} end
     
@@ -68,12 +115,22 @@ local function ConvertOptions(options)
             icon = opt.icon,
             distance = opt.distance,
             canInteract = WrapCanInteract(opt.canInteract),
-            onSelect = WrapOnSelect(opt.onSelect, optionName),
-            event = opt.event,
-            serverEvent = opt.serverEvent,
             command = opt.command,
             shouldClose = opt.shouldClose ~= false
         }
+        
+        if opt.onSelect then
+            newOpt.onSelect = WrapOnSelect(opt.onSelect, optionName)
+        elseif opt.event then
+            newOpt.onSelect = WrapEvent(opt.event, opt)
+        elseif opt.serverEvent then
+            newOpt.onSelect = WrapServerEvent(opt.serverEvent, opt)
+        end
+        
+        if newOpt.onSelect then
+            newOpt.event = nil
+            newOpt.serverEvent = nil
+        end
         
         if opt.groups then
             local wrappedCanInteract = newOpt.canInteract

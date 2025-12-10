@@ -32,7 +32,7 @@ local function BuildDataObject(entity, worldPos, opt)
     local entityModel = entity and entity ~= 0 and GetEntityModel(entity) or nil
     local entityType = entity and entity ~= 0 and GetEntityType(entity) or nil
     
-    return {
+    local data = {
         entity = entity,
         coords = entityCoords,
         distance = distance,
@@ -45,6 +45,16 @@ local function BuildDataObject(entity, worldPos, opt)
         icon = opt and opt.icon or nil,
         options = opt
     }
+    
+    if opt then
+        for k, v in pairs(opt) do
+            if data[k] == nil then
+                data[k] = v
+            end
+        end
+    end
+    
+    return data
 end
 
 local function WrapAction(originalAction, opt)
@@ -77,6 +87,24 @@ local function WrapCanInteract(originalCanInteract, opt)
     end
 end
 
+local function WrapEvent(eventName, opt)
+    if not eventName then return nil end
+    
+    return function(entity, worldPos, registration)
+        local data = BuildDataObject(entity, worldPos, opt)
+        TriggerEvent(eventName, data)
+    end
+end
+
+local function WrapServerEvent(eventName, opt)
+    if not eventName then return nil end
+    
+    return function(entity, worldPos, registration)
+        local data = BuildDataObject(entity, worldPos, opt)
+        TriggerServerEvent(eventName, data)
+    end
+end
+
 local function ConvertOptions(options, defaultDistance)
     if not options then return {} end
     
@@ -106,12 +134,17 @@ local function ConvertOptions(options, defaultDistance)
                 newOpt.onSelect = WrapAction(opt.action, opt)
             elseif opt.event then
                 if opt.type == "server" then
-                    newOpt.serverEvent = opt.event
+                    newOpt.onSelect = WrapServerEvent(opt.event, opt)
                 elseif opt.type == "command" then
                     newOpt.command = opt.event
                 else
-                    newOpt.event = opt.event
+                    newOpt.onSelect = WrapEvent(opt.event, opt)
                 end
+            end
+            
+            if newOpt.onSelect then
+                newOpt.event = nil
+                newOpt.serverEvent = nil
             end
             
             if opt.job then

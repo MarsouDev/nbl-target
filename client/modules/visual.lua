@@ -57,37 +57,47 @@ function Visual:GetEntityType(entity)
     return "unknown"
 end
 
-local OutlineEnabled = Config.Outline.enabled
-local OutlineAllowedTypes = Config.Outline.allowedTypes
-
-function Visual:CanUseOutline(entity)
-    if not OutlineEnabled then return false end
-    if not self:IsEntityValid(entity) then return false end
-    
-    local playerPed = PlayerPedId()
-    if entity == playerPed then
-        return OutlineAllowedTypes.self == true
-    end
-    
-    local entityType = self:GetEntityType(entity)
-    return OutlineAllowedTypes[entityType] == true
+local function GetOutlineConfig()
+    return Config.Outline
 end
 
-local MarkerAllowedTypes = MarkerConfig.allowedTypes
+local function GetMarkerConfig()
+    return Config.Marker
+end
 
-function Visual:CanUseMarker(entity)
-    if not MarkerEnabled then return false end
+local function GetTargetConfig()
+    return Config.Target
+end
+
+function Visual:CanUseOutline(entity)
+    local outlineConfig = GetOutlineConfig()
+    if not outlineConfig.enabled then return false end
     if not self:IsEntityValid(entity) then return false end
-    
-    if not MarkerAllowedTypes then return true end
     
     local playerPed = PlayerPedId()
     if entity == playerPed then
-        return MarkerAllowedTypes.self == true
+        return outlineConfig.allowedTypes.self == true
     end
     
     local entityType = self:GetEntityType(entity)
-    return MarkerAllowedTypes[entityType] == true
+    return outlineConfig.allowedTypes[entityType] == true
+end
+
+function Visual:CanUseMarker(entity)
+    local markerConfig = GetMarkerConfig()
+    if not markerConfig.enabled then return false end
+    if not self:IsEntityValid(entity) then return false end
+    
+    local allowedTypes = markerConfig.allowedTypes
+    if not allowedTypes then return true end
+    
+    local playerPed = PlayerPedId()
+    if entity == playerPed then
+        return allowedTypes.self == true
+    end
+    
+    local entityType = self:GetEntityType(entity)
+    return allowedTypes[entityType] == true
 end
 
 function Visual:GetDistanceToEntity(entity)
@@ -110,14 +120,13 @@ function Visual:RemoveOutline(entity)
     SetOutline(entity, false)
 end
 
-local OutlineColor = Config.Outline.color
-
 function Visual:DrawOutline(entity, color)
-    if not OutlineEnabled then return end
+    local outlineConfig = GetOutlineConfig()
+    if not outlineConfig.enabled then return end
     if not self:IsEntityValid(entity) then return end
     if not self:CanUseOutline(entity) then return end
     
-    local c = color or OutlineColor
+    local c = color or outlineConfig.color
     SetEntityDrawOutlineColor(c.r, c.g, c.b, c.a)
     
     if SetOutline(entity, true) then
@@ -148,57 +157,48 @@ function Visual:ClearAllTracked()
     end
 end
 
-local MarkerConfig = Config.Marker
-local MarkerEnabled = MarkerConfig.enabled
-local MarkerType = MarkerConfig.type
-local MarkerColor = MarkerConfig.color
-local MarkerScale = MarkerConfig.scale
-local MarkerHeight = MarkerConfig.height
-local MarkerBob = MarkerConfig.bob
-local MarkerRotate = MarkerConfig.rotate
-
 function Visual:DrawMarker(entity, color)
-    if not MarkerEnabled then return end
+    local markerConfig = GetMarkerConfig()
+    if not markerConfig.enabled then return end
     if not self:IsEntityValid(entity) then return end
     if not self:CanUseMarker(entity) then return end
     
     local entityCoords = GetEntityCoords(entity)
-    local c = color or MarkerColor
+    local c = color or markerConfig.color
     
     local topOffset = GetEntityTopOffset(entity)
-    local markerZ = entityCoords.z + topOffset + MarkerHeight
+    local markerZ = entityCoords.z + topOffset + markerConfig.height
     
-    if MarkerBob then
+    if markerConfig.bob then
         markerZ = markerZ + (math.sin(GetGameTimer() * 0.005) * 0.05)
     end
     
-    if MarkerRotate then
+    if markerConfig.rotate then
         MarkerRotation = (MarkerRotation + 1.0) % 360.0
     end
     
     DrawMarker(
-        MarkerType,
+        markerConfig.type,
         entityCoords.x, entityCoords.y, markerZ,
         0.0, 0.0, 0.0,
         0.0, 0.0, MarkerRotation,
-        MarkerScale, MarkerScale, MarkerScale,
+        markerConfig.scale, markerConfig.scale, markerConfig.scale,
         c.r, c.g, c.b, c.a,
-        MarkerBob,
+        markerConfig.bob,
         true,
         2,
-        MarkerRotate,
+        markerConfig.rotate,
         nil, nil,
         false
     )
 end
 
-local MaxDistance = Config.Target.maxDistance
-
 function Visual:HighlightEntity(entity)
     if not self:IsEntityValid(entity) then return end
     
+    local targetConfig = GetTargetConfig()
     local distance = self:GetDistanceToEntity(entity)
-    if distance > MaxDistance then return end
+    if distance > targetConfig.maxDistance then return end
     
     if CurrentEntity and CurrentEntity ~= entity then
         self:ClearOutline(CurrentEntity)
@@ -249,15 +249,16 @@ function Visual:GetCurrentEntity()
     return CurrentEntity
 end
 
-local AllowSelfTarget = Config.Target.allowSelfTarget
-
 function Visual:ProcessHover(cursorPos)
     if self:IsLocked() then
         self:DrawLockedEntity()
         return nil
     end
     
-    local hit, worldPos, _, entity = Raycast:FromScreen(cursorPos, MaxDistance)
+    local targetConfig = GetTargetConfig()
+    local maxDistance = targetConfig.maxDistance
+    
+    local hit, worldPos, _, entity = Raycast:FromScreen(cursorPos, maxDistance)
     
     if not hit then
         if CurrentEntity then
@@ -278,7 +279,7 @@ function Visual:ProcessHover(cursorPos)
         local playerCoords = GetEntityCoords(PlayerPedId())
         local distance = #(playerCoords - worldPos)
         
-        if distance <= MaxDistance then
+        if distance <= maxDistance then
             local entityType = Entity:GetType(0, worldPos)
             local hasOptions = Registry:HasAvailableOptions(0, entityType, worldPos)
             
@@ -297,7 +298,7 @@ function Visual:ProcessHover(cursorPos)
     end
     
     local playerPed = PlayerPedId()
-    if entity == playerPed and not AllowSelfTarget then
+    if entity == playerPed and not targetConfig.allowSelfTarget then
         if CurrentEntity then
             self:ClearOutline(CurrentEntity)
             CurrentEntity = nil
@@ -306,7 +307,7 @@ function Visual:ProcessHover(cursorPos)
     end
     
     local distance = self:GetDistanceToEntity(entity)
-    if distance > MaxDistance then
+    if distance > maxDistance then
         if CurrentEntity then
             self:ClearOutline(CurrentEntity)
             CurrentEntity = nil

@@ -455,8 +455,6 @@ function Registry:GetAllRegistrations(entity, entityType)
     return results
 end
 
-local DebugEnabled = Config.Debug.enabled
-
 function Registry:CanInteract(registration, entity, worldPos, bone, cachedDistance)
     if not registration.enabled then return false end
     
@@ -470,7 +468,7 @@ function Registry:CanInteract(registration, entity, worldPos, bone, cachedDistan
         local success, result = pcall(canInteractFn, entity, distance, worldPos, registration.name, bone)
         
         if not success then
-            if DebugEnabled then
+            if Config.Debug.enabled then
                 print("^1[NBL-Target]^7 canInteract error: " .. tostring(result))
             end
             return false

@@ -46,12 +46,10 @@ local function Deactivate()
     end
 end
 
-local DisabledControls = Config.DisabledControls
-local DisabledControlsCount = #DisabledControls
-
 local function DisableControls()
-    for i = 1, DisabledControlsCount do
-        DisableControlAction(0, DisabledControls[i], true)
+    local controls = Config.DisabledControls
+    for i = 1, #controls do
+        DisableControlAction(0, controls[i], true)
     end
 end
 

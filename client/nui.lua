@@ -196,11 +196,9 @@ function NUI:CheckDistance()
 end
 
 CreateThread(function()
-    local refreshInterval = Config.Menu.refreshInterval
-    local isRefreshEnabled = refreshInterval > 0
-    
     while true do
-        if NUI.isOpen and isRefreshEnabled then
+        local refreshInterval = Config.Menu.refreshInterval
+        if NUI.isOpen and refreshInterval > 0 then
             NUI:Refresh()
             Wait(refreshInterval)
         else

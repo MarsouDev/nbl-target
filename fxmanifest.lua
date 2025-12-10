@@ -20,7 +20,9 @@ client_scripts {
     'client/modules/visual.lua',
     'client/registry.lua',
     'client/nui.lua',
-    'client/main.lua'
+    'client/main.lua',
+    'client/bridge/ox_target.lua',
+    'client/bridge/qb_target.lua'
 }
 
 files {

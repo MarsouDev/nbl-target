@@ -223,8 +223,8 @@ RegisterNUICallback("select", function(data, cb)
     Registry:OnSelect(optionId, entity, worldPos)
     Registry:ClearActiveSubItems()
     
-    if shouldClose then
-        exports['nbl-target']:deactivate()
+    if shouldClose and Target_Deactivate then
+        Target_Deactivate()
     end
 end)
 

@@ -37,11 +37,11 @@ local function NormalizeModels(models)
     if modelType == "table" then
         local result = {}
         for i, model in ipairs(models) do
-            result[i] = type(model) == "string" and GetHashKey(model) or model
+            result[i] = type(model) == "string" and joaat(model) or model
         end
         return result
     elseif modelType == "string" then
-        return { GetHashKey(models) }
+        return { joaat(models) }
     else
         return { models }
     end

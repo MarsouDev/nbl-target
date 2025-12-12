@@ -110,6 +110,8 @@ RegisterCommand('+nbl_target', Activate, false)
 RegisterCommand('-nbl_target', Deactivate, false)
 RegisterKeyMapping('+nbl_target', 'Open Target Menu', 'keyboard', Config.Controls.activationKey)
 
+_G.Target_Deactivate = Deactivate
+
 exports('isActive', function() return State.active end)
 exports('isMenuOpen', function() return NUI:IsOpen() end)
 exports('deactivate', Deactivate)

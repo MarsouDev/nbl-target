@@ -21,12 +21,16 @@ client_scripts {
     'client/registry.lua',
     'client/nui.lua',
     'client/main.lua',
+    'client/framework/init.lua',
     'client/bridge/ox_target.lua',
     'client/bridge/qb_target.lua'
 }
 
 files {
+    'client/framework/esx.lua',
+    'client/framework/qbcore.lua',
     'web/index.html',
     'web/css/style.css',
     'web/js/app.js'
 }
+

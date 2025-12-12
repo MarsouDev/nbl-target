@@ -53,7 +53,7 @@ local function GetMapObjectHashes()
     
     if Config.MapObjectModels then
         for _, modelName in ipairs(Config.MapObjectModels) do
-            local hash = type(modelName) == "string" and GetHashKey(modelName) or modelName
+            local hash = type(modelName) == "string" and joaat(modelName) or modelName
             MapObjectHashes[#MapObjectHashes + 1] = hash
         end
     end

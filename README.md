@@ -70,6 +70,7 @@ NBL Target is a **free and open source** comprehensive targeting system that all
 - ✅ **Movement-Friendly**: Menu stays open while moving (in vehicles, walking with peds)
 - ✅ **Sky/Ground Targeting**: Register options for clicking in the sky or on the ground
 - ✅ **Configurable Detection**: Customize MAP object detection for your mapping
+- ✅ **Framework Integration**: Auto-detects ESX/QBCore for job/gang/items support, works standalone if no framework detected
 
 ### How It Works
 
@@ -107,6 +108,7 @@ NBL Target is a **free and open source** comprehensive targeting system that all
 - ⚙️ **Configurable MAP Objects**: Add custom static object models in config for custom mapping support
 - 🌌 **Sky/Ground Targeting**: Register options for clicking in the sky or on the ground
 - 🔌 **Bridge System**: Automatic compatibility layer for `ox_target` and `qb-target` exports
+- 🎮 **Standalone Mode**: Works perfectly without any framework - framework features are optional enhancements
 
 ---
 
@@ -169,6 +171,32 @@ local target = exports['nbl-target']:addGlobalVehicle({
     onSelect = function(entity, coords)
         exports['vehicles']:toggleLock(entity)
     end
+})
+```
+
+### With Framework Filters (Job/Items/Groups)
+
+```lua
+exports['nbl-target']:addGlobalVehicle({
+    label = "Police Vehicle",
+    job = 'police',
+    onSelect = function(entity) end
+})
+
+exports['nbl-target']:addGlobalPed({
+    label = "Requires Lockpick",
+    items = 'lockpick',
+    onSelect = function(entity) end
+})
+
+exports['nbl-target']:addGlobalSelf({
+    {
+        label = 'Admin Menu',
+        groups = 'admin',
+        items = {
+            { label = 'Option 1', onSelect = function() end }
+        }
+    }
 })
 ```
 
@@ -313,9 +341,10 @@ Config.Menu = {
 
 **Refresh Interval:**
 - `0` - Disable auto-refresh (not recommended)
-- `250` - Refresh every 250ms (fast, good for checkboxes)
-- `500` - Refresh every 500ms (balanced, default)
-- `1000` - Refresh every 1000ms (slower, better performance)
+- `100` - Refresh every 100ms (very fast, excellent for checkboxes, default)
+- `250` - Refresh every 250ms (fast, good for most use cases)
+- `500` - Refresh every 500ms (balanced, better performance)
+- `1000` - Refresh every 1000ms (slower, best performance)
 
 **How Refresh Works:**
 - When menu is open, system calls all `canInteract` functions every `refreshInterval` ms
@@ -407,10 +436,12 @@ The bridge system automatically:
 - `isActive()` - Check if targeting is active
 
 ❌ **Not Supported (Zones):**
-- `addSphereZone(data)` - Returns `nil` (zones not supported)
-- `addBoxZone(data)` - Returns `nil` (zones not supported)
-- `addPolyZone(data)` - Returns `nil` (zones not supported)
-- `removeZone(id)` - Returns `nil` (zones not supported)
+- `addSphereZone(data)` - Returns `nil`, shows console warning (zones not supported)
+- `addBoxZone(data)` - Returns `nil`, shows console warning (zones not supported)
+- `addPolyZone(data)` - Returns `nil`, shows console warning (zones not supported)
+- `removeZone(id)` - Returns `nil`, shows console warning (zones not supported)
+
+**Note:** Zone functions will print a one-time warning to the console indicating that zone targeting is not supported. Use entity-based targeting instead.
 
 #### qb-target / qtarget Compatibility
 
@@ -441,11 +472,16 @@ The bridge system automatically:
 - `IsTargetSuccess()` - Check if menu is open
 - `GetTargetEntity()` - Get currently selected entity
 
-❌ **Not Supported (Zones):**
-- `AddBoxZone(...)` - Returns `nil` (zones not supported)
-- `AddPolyZone(...)` - Returns `nil` (zones not supported)
-- `AddCircleZone(...)` - Returns `nil` (zones not supported)
-- `RemoveZone(name)` - Returns `nil` (zones not supported)
+❌ **Not Supported:**
+- `AddTargetBone(bones, options)` - Shows console warning (bone targeting not supported, use entity targeting instead)
+- `AddBoxZone(...)` - Returns `nil`, shows console warning (zones not supported)
+- `AddPolyZone(...)` - Returns `nil`, shows console warning (zones not supported)
+- `AddCircleZone(...)` - Returns `nil`, shows console warning (zones not supported)
+- `RemoveZone(name)` - Returns `nil`, shows console warning (zones not supported)
+- `SpawnPed(...)` - Shows console warning (ped spawning not supported)
+- `DeletePed(...)` - Shows console warning (ped deletion not supported)
+
+**Note:** Unsupported functions will print a one-time warning to the console indicating the feature is not available. Use entity-based targeting instead.
 
 ### Option Format Conversion
 
@@ -470,8 +506,10 @@ The bridge automatically converts option formats:
 - `distance` → `distance`
 - `action` → `onSelect`
 - `event` + `type` → `event`, `serverEvent`, or `command`
-- `job` → Integrated into `canInteract` function
-- `item` / `required_item` → Not converted (use NBL Target's native system)
+- `job` → Integrated into `canInteract` function (auto-detects ESX/QBCore)
+- `gang` → Integrated into `canInteract` function (QBCore only)
+- `groups` → Integrated into `canInteract` function (ESX/QBCore)
+- `item` / `required_item` → Integrated into `canInteract` function (auto-detects ESX/QBCore)
 
 ### Migration Example
 
@@ -515,17 +553,70 @@ exports['nbl-target']:addGlobalVehicle({
 })
 ```
 
+### Framework Support (ESX/QBCore)
+
+NBL Target automatically detects and integrates with ESX or QBCore frameworks when present. This enables automatic handling of job, gang, groups, and item filters in **both the native API and bridge compatibility mode**.
+
+**Auto-Detection:**
+- Automatically detects ESX or QBCore on resource start
+- No configuration needed - works out of the box
+- Falls back gracefully if no framework is detected
+
+**Supported Filters (Native API & Bridge):**
+- **Job**: Automatically checked using framework's job system
+- **Gang**: Automatically checked using QBCore's gang system (QBCore only)
+- **Groups**: Automatically checked using framework's group system
+- **Items**: Automatically checked using framework's inventory system
+
+**How It Works:**
+When options include `job`, `gang`, `groups`, or `items` filters, the system:
+1. Automatically wraps the `canInteract` function with framework checks
+2. Uses event-driven caching (no polling) for optimal performance
+3. Updates player data on job/gang changes via framework events
+4. Shows warnings for unsupported filters if framework is not available
+5. Works seamlessly in both native API and bridge compatibility layer
+
+**Example (Native API with Framework Filters):**
+```lua
+exports['nbl-target']:addGlobalVehicle({
+    label = 'Police Vehicle',
+    job = 'police',
+    onSelect = function(entity) end
+})
+
+exports['nbl-target']:addGlobalPed({
+    label = 'Requires Lockpick',
+    items = 'lockpick',
+    onSelect = function(entity) end
+})
+```
+
+**Example (Bridge Compatibility - Automatic Conversion):**
+```lua
+exports['qb-target']:AddGlobalVehicle({
+    {
+        label = 'Police Vehicle',
+        job = 'police',
+        action = function(entity) end
+    }
+})
+```
+
 ### Important Notes
 
-1. **Zones Not Supported**: Zone-based targeting (`AddBoxZone`, `AddPolyZone`, etc.) is not supported. If your scripts use zones, you'll need to migrate to entity-based targeting.
+1. **Zones Not Supported**: Zone-based targeting (`AddBoxZone`, `AddPolyZone`, etc.) is not supported. If your scripts use zones, you'll need to migrate to entity-based targeting. The bridge will show a console warning when zone functions are called.
 
-2. **Automatic Conversion**: The bridge handles all option format conversions automatically - you don't need to modify your existing code.
+2. **Bone Targeting Not Supported**: `AddTargetBone` is not supported. Use entity-based targeting instead. The bridge will show a console warning when bone functions are called.
 
-3. **Handler Objects**: Returned handler objects are compatible with the original target system's API.
+3. **Automatic Conversion**: The bridge handles all option format conversions automatically - you don't need to modify your existing code.
 
-4. **Performance**: The bridge adds minimal overhead - option conversion happens once during registration.
+4. **Handler Objects**: Returned handler objects are compatible with the original target system's API.
 
-5. **Error Handling**: All conversions are wrapped in `pcall` for safety.
+5. **Performance**: The bridge adds minimal overhead - option conversion happens once during registration.
+
+6. **Error Handling**: All conversions are wrapped in `pcall` for safety.
+
+7. **Framework Warnings**: If a script uses job/gang/items filters but no framework is detected, a warning will be printed to help developers migrate to `canInteract` functions.
 
 ---
 
@@ -646,7 +737,7 @@ Register an option for one or multiple models.
 ```lua
 -- Single model (string or hash)
 local target = exports['nbl-target']:addModel('prop_atm_01', options)
-local target = exports['nbl-target']:addModel(GetHashKey('prop_atm_01'), options)
+local target = exports['nbl-target']:addModel(joaat('prop_atm_01'), options)
 
 -- Multiple models (array)
 local target = exports['nbl-target']:addModel({
@@ -856,7 +947,7 @@ exports['nbl-target']:addGlobalSelf({
 ### Real-time Updates
 
 When using a function for `checked`, the system automatically:
-- Calls the function every `refreshInterval` milliseconds (default: 250ms)
+- Calls the function every `refreshInterval` milliseconds (default: 100ms)
 - Updates the checkbox visual state if the value changed
 - Works even when you're in a sub-menu
 - Updates instantly when external code changes your variable
@@ -889,7 +980,7 @@ exports['nbl-target']:addGlobalSelf({
 -- External command to toggle
 RegisterCommand('toggleDebug', function()
     debugEnabled = not debugEnabled
-    -- Checkbox will update automatically within 250ms!
+    -- Checkbox will update automatically within 100ms!
 end, false)
 ```
 
@@ -1028,7 +1119,7 @@ NBL Target includes a powerful real-time refresh system that updates options and
 
 ### How It Works
 
-1. **When Menu is Open**: System refreshes every `refreshInterval` milliseconds (default: 250ms)
+1. **When Menu is Open**: System refreshes every `refreshInterval` milliseconds (default: 100ms)
 2. **Checks Conditions**: Calls all `canInteract` functions to see if options should show/hide
 3. **Checks Checkboxes**: Calls all `checked()` functions to update checkbox states
 4. **Smart Updates**: Only sends updates to NUI if something actually changed (hash comparison)
@@ -1038,14 +1129,15 @@ NBL Target includes a powerful real-time refresh system that updates options and
 
 ```lua
 Config.Menu = {
-    refreshInterval = 100  -- Milliseconds between refreshes
+    refreshInterval = 100  -- Milliseconds between refreshes (default: 100ms)
 }
 ```
 
 **Recommended Values:**
-- `250` - Fast updates, good for checkboxes (default)
-- `500` - Balanced, good for most use cases
-- `1000` - Slower, better performance
+- `100` - Very fast updates, excellent for checkboxes (default)
+- `250` - Fast updates, good for most use cases
+- `500` - Balanced, better performance
+- `1000` - Slower, best performance
 - `0` - Disabled (not recommended)
 
 ### What Gets Refreshed
@@ -1063,7 +1155,7 @@ exports['nbl-target']:addGlobalVehicle({
     {
         label = 'Enter Vehicle',
         canInteract = function(entity, distance)
-            -- This is called every 250ms when menu is open
+            -- This is called every 100ms when menu is open (default)
             return hasKey and distance <= 3.0
         end,
         onSelect = function(entity) end
@@ -1073,7 +1165,7 @@ exports['nbl-target']:addGlobalVehicle({
 -- Later, player gets key
 RegisterNetEvent('keys:received', function()
     hasKey = true
-    -- Option will appear automatically within 250ms!
+    -- Option will appear automatically within 100ms!
 end)
 ```
 
@@ -1091,7 +1183,7 @@ exports['nbl-target']:addGlobalSelf({
                 label = 'God Mode',
                 checkbox = true,
                 checked = function()
-                    return godmode  -- Called every 250ms
+                    return godmode  -- Called every 100ms (default)
                 end,
                 onCheck = function(newState)
                     godmode = newState
@@ -1106,7 +1198,7 @@ exports['nbl-target']:addGlobalSelf({
 RegisterCommand('god', function()
     godmode = not godmode
     SetEntityInvincible(PlayerPedId(), godmode)
-    -- Checkbox updates automatically within 250ms!
+    -- Checkbox updates automatically within 100ms!
 end, false)
 ```
 
@@ -1240,6 +1332,10 @@ When registering an option, you provide a configuration table with the following
 | `onCheck` | `function` | No | Callback when checkbox is toggled (checkboxes only) | - |
 | `checkbox` | `boolean` | No | Enable checkbox mode | `false` |
 | `checked` | `function` or `boolean` | No | Checkbox state (function or boolean) | - |
+| `job` | `string` or `table` | No | Job filter (ESX/QBCore) - auto-checked via framework | - |
+| `gang` | `string` or `table` | No | Gang filter (QBCore only) - auto-checked via framework | - |
+| `groups` | `string` or `table` | No | Groups filter (ESX/QBCore) - auto-checked via framework | - |
+| `item` | `string` or `table` | No | Item requirement filter (ESX/QBCore) - auto-checked via framework | - |
 | `export` | `string` | No | Export to call (format: `"resource.export"`) | - |
 | `event` | `string` | No | Client event name to trigger | - |
 | `serverEvent` | `string` | No | Server event name to trigger | - |
@@ -1274,7 +1370,7 @@ Called to determine if the option should be shown.
 
 **Returns:** `boolean` - `true` to show, `false` to hide
 
-**Called:** Every `refreshInterval` ms when menu is open, and when hovering
+**Called:** Every `refreshInterval` ms when menu is open (default: 100ms), and when hovering
 
 #### `onSelect` Callback
 
@@ -1311,7 +1407,7 @@ Called to get the current checkbox state.
 
 **Returns:** `boolean` - `true` for checked, `false` for unchecked
 
-**Called:** Every `refreshInterval` ms when menu is open (for real-time updates)
+**Called:** Every `refreshInterval` ms when menu is open (default: 100ms, for real-time updates)
 
 ---
 
@@ -1581,7 +1677,7 @@ target:remove()
 The menu automatically refreshes options based on `canInteract` conditions when open. This allows options to appear/disappear dynamically based on game state.
 
 **How it works:**
-- When menu is open, system checks `canInteract` functions every `refreshInterval` ms
+- When menu is open, system checks `canInteract` functions every `refreshInterval` ms (default: 100ms)
 - If an option's `canInteract` changes from `false` to `true`, it appears
 - If it changes from `true` to `false`, it disappears
 - Only options that actually changed are updated (smart refresh)
@@ -1826,13 +1922,13 @@ vehicleOption:setLabel("New Label")
 1. **Check Model Registration**: Ensure the model is registered via `addModel()` or in `Config.MapObjectModels`
 2. **Verify Model Name**: Use the exact model name (e.g., `'prop_atm_01'` not `'atm'`)
 3. **Check Distance Settings**: Increase `Config.MapObjectSearchRadius` or `Config.MapObjectMaxDistance`
-4. **Test Model Hash**: Print the model hash to verify: `print(GetHashKey('prop_atm_01'))`
+4. **Test Model Hash**: Print the model hash to verify: `print(joaat('prop_atm_01'))`
 5. **Custom Mapping**: If using custom mapping, add the model name to `Config.MapObjectModels`
 
 **Example Debug:**
 ```lua
 -- Test if model exists
-local modelHash = GetHashKey('prop_atm_01')
+local modelHash = joaat('prop_atm_01')
 local obj = GetClosestObjectOfType(x, y, z, 5.0, modelHash, false, false, false)
 print("Model hash:", modelHash, "Found object:", obj)
 ```
@@ -1862,7 +1958,7 @@ print("Model hash:", modelHash, "Found object:", obj)
 
 ### How Refresh System Works
 
-1. **Thread Loop**: Main refresh thread runs every `refreshInterval` ms when menu is open
+1. **Thread Loop**: Main refresh thread runs every `refreshInterval` ms (default: 100ms) when menu is open
 2. **Option Collection**: System calls `GetAvailableOptions()` which:
    - Gets all registrations for the entity
    - Calls `canInteract` for each option
@@ -1926,6 +2022,10 @@ nbl-target/
 │   │   ├── raycast.lua         # Raycast system for entity detection
 │   │   ├── entity.lua           # Entity utilities and type detection
 │   │   └── visual.lua           # Visual feedback (outline, markers)
+│   ├── framework/
+│   │   ├── init.lua            # Framework detection and unified interface
+│   │   ├── esx.lua             # ESX-specific logic (job, items, groups)
+│   │   └── qbcore.lua          # QBCore-specific logic (job, gang, items, groups)
 │   ├── bridge/
 │   │   ├── ox_target.lua       # ox_target compatibility bridge
 │   │   └── qb_target.lua       # qb-target / qtarget compatibility bridge
@@ -1961,6 +2061,10 @@ nbl-target/
 | `checkbox` | `boolean` | No | `false` | Enable checkbox mode |
 | `checked` | `function` or `boolean` | No | - | Checkbox state (function recommended) |
 | `onCheck` | `function` | No | - | Callback when checkbox toggled |
+| `job` | `string` or `table` | No | - | Job filter (ESX/QBCore) - auto-checked |
+| `gang` | `string` or `table` | No | - | Gang filter (QBCore only) - auto-checked |
+| `groups` | `string` or `table` | No | - | Groups filter (ESX/QBCore) - auto-checked |
+| `item` | `string` or `table` | No | - | Item requirement (ESX/QBCore) - auto-checked |
 | `export` | `string` | No | - | Export to call (`"resource.export"`) |
 | `event` | `string` | No | - | Client event name |
 | `serverEvent` | `string` | No | - | Server event name |

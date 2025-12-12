@@ -17,7 +17,7 @@ local function Activate()
     Visual:SetActive(true)
     
     if Config.Debug.enabled then
-        print("^2[NBL-Target]^7 Activated")
+        print("^2[nbl-target]^7 Activated")
     end
 end
 
@@ -42,7 +42,7 @@ local function Deactivate()
     SetMouseCursorSprite(0)
     
     if Config.Debug.enabled then
-        print("^2[NBL-Target]^7 Deactivated")
+        print("^2[nbl-target]^7 Deactivated")
     end
 end
 

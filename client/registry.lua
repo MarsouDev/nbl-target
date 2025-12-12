@@ -133,12 +133,28 @@ local function CreateEntry(id, baseData, options)
     
     if hasCheckbox and hasItems then
         if Config.Debug.enabled then
-            print("^3[NBL-Target]^7 Warning: '" .. (options.label or "unknown") .. "' has both checkbox and items. Items ignored.")
+            print("^3[nbl-target]^7 Warning: '" .. (options.label or "unknown") .. "' has both checkbox and items. Items ignored.")
         end
         hasItems = false
     end
     
     local resource = options.resource or GetSourceResource()
+    
+    local originalCanInteract = options.canInteract
+    local conditionWrapper = nil
+    
+    if _G.TargetFramework then
+        conditionWrapper = _G.TargetFramework.CreateConditionWrapper(options)
+    end
+    
+    local finalCanInteract = nil
+    if conditionWrapper or originalCanInteract then
+        if _G.TargetFramework then
+            finalCanInteract = _G.TargetFramework.WrapCanInteract(originalCanInteract, conditionWrapper)
+        else
+            finalCanInteract = originalCanInteract
+        end
+    end
     
     local entry = {
         id = id,
@@ -149,7 +165,7 @@ local function CreateEntry(id, baseData, options)
         enabled = options.enabled ~= false,
         shouldClose = options.shouldClose or false,
         resource = resource,
-        canInteract = options.canInteract,
+        canInteract = finalCanInteract,
         onSelect = options.onSelect,
         onCheck = options.onCheck,
         checkbox = hasCheckbox,
@@ -218,7 +234,7 @@ end
 function Registry:AddEntity(entities, options)
     if not entities then
         if Config.Debug.enabled then
-            print("^1[NBL-Target]^7 AddEntity: Invalid entity")
+            print("^1[nbl-target]^7 AddEntity: Invalid entity")
         end
         return nil
     end
@@ -236,7 +252,7 @@ function Registry:AddEntity(entities, options)
     
     if #ids == 0 then
         if Config.Debug.enabled then
-            print("^1[NBL-Target]^7 AddEntity: No valid entities")
+            print("^1[nbl-target]^7 AddEntity: No valid entities")
         end
         return nil
     end
@@ -247,7 +263,7 @@ end
 function Registry:AddLocalEntity(entities, options)
     if not entities then
         if Config.Debug.enabled then
-            print("^1[NBL-Target]^7 AddLocalEntity: Invalid entity")
+            print("^1[nbl-target]^7 AddLocalEntity: Invalid entity")
         end
         return nil
     end
@@ -265,7 +281,7 @@ function Registry:AddLocalEntity(entities, options)
     
     if #ids == 0 then
         if Config.Debug.enabled then
-            print("^1[NBL-Target]^7 AddLocalEntity: No valid entities")
+            print("^1[nbl-target]^7 AddLocalEntity: No valid entities")
         end
         return nil
     end
@@ -276,7 +292,7 @@ end
 function Registry:AddModel(models, options)
     if not models then
         if Config.Debug.enabled then
-            print("^1[NBL-Target]^7 AddModel: Invalid model")
+            print("^1[nbl-target]^7 AddModel: Invalid model")
         end
         return nil
     end
@@ -364,7 +380,7 @@ function Registry:RemoveByResource(resourceName)
     self.byResource[resourceName] = nil
     
     if Config.Debug.enabled and count > 0 then
-        print("^3[NBL-Target]^7 Removed " .. count .. " entries from: " .. resourceName)
+        print("^3[nbl-target]^7 Removed " .. count .. " entries from: " .. resourceName)
     end
     
     return count
@@ -469,7 +485,7 @@ function Registry:CanInteract(registration, entity, worldPos, bone, cachedDistan
         
         if not success then
             if Config.Debug.enabled then
-                print("^1[NBL-Target]^7 canInteract error: " .. tostring(result))
+                print("^1[nbl-target]^7 canInteract error: " .. tostring(result))
             end
             return false
         end
@@ -529,10 +545,26 @@ function Registry:ProcessSubItems(items, entity, worldPos, parentId, depth)
     local filtered = {}
     
     for idx, item in ipairs(items) do
+        local originalCanInteract = item.canInteract
+        local conditionWrapper = nil
+        
+        if _G.TargetFramework then
+            conditionWrapper = _G.TargetFramework.CreateConditionWrapper(item)
+        end
+        
+        local finalCanInteract = nil
+        if conditionWrapper or originalCanInteract then
+            if _G.TargetFramework then
+                finalCanInteract = _G.TargetFramework.WrapCanInteract(originalCanInteract, conditionWrapper)
+            else
+                finalCanInteract = originalCanInteract
+            end
+        end
+        
         local canShow = true
         
-        if item.canInteract then
-            local success, result = pcall(item.canInteract, entity, distance, worldPos, item.name)
+        if finalCanInteract then
+            local success, result = pcall(finalCanInteract, entity, distance, worldPos, item.name)
             canShow = success and result == true
         end
         
@@ -560,7 +592,7 @@ function Registry:ProcessSubItems(items, entity, worldPos, parentId, depth)
                 icon = item.icon,
                 name = item.name,
                 distance = item.distance,
-                canInteract = item.canInteract,
+                canInteract = finalCanInteract,
                 onSelect = item.onSelect,
                 onCheck = item.onCheck,
                 checkbox = hasCheckbox,
@@ -638,7 +670,7 @@ function Registry:ExecuteAction(registration, entity, worldPos)
             if exports[resourceName] and exports[resourceName][exportName] then
                 local success, err = pcall(exports[resourceName][exportName], entity, worldPos, registration)
                 if not success and Config.Debug.enabled then
-                    print("^1[NBL-Target]^7 Export error: " .. tostring(err))
+                    print("^1[nbl-target]^7 Export error: " .. tostring(err))
                 end
             end
         end
@@ -663,7 +695,7 @@ function Registry:ExecuteAction(registration, entity, worldPos)
     if registration.onSelect then
         local success, err = pcall(registration.onSelect, entity, worldPos, registration)
         if not success and Config.Debug.enabled then
-            print("^1[NBL-Target]^7 onSelect error: " .. tostring(err))
+            print("^1[nbl-target]^7 onSelect error: " .. tostring(err))
         end
     end
 end
@@ -690,7 +722,7 @@ function Registry:OnCheck(optionId, entity, worldPos, newState)
     if registration.onCheck then
         local success, err = pcall(registration.onCheck, newState, entity, worldPos, registration)
         if not success and Config.Debug.enabled then
-            print("^1[NBL-Target]^7 onCheck error: " .. tostring(err))
+            print("^1[nbl-target]^7 onCheck error: " .. tostring(err))
         end
     elseif registration.event then
         TriggerEvent(registration.event, newState, entity, worldPos, registration)

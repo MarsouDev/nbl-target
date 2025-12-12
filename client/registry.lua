@@ -392,7 +392,7 @@ function Registry:CleanupInvalidEntities()
     for _, storage in ipairs({ self.entities, self.localEntities }) do
         for id, entry in pairs(storage) do
             if entry.entity then
-                if GetEntityType(entry.entity) == 0 then
+                if not Entity:IsValid(entry.entity) then
                     RemoveEntry(storage, id)
                     removed = removed + 1
                 end
@@ -403,12 +403,27 @@ function Registry:CleanupInvalidEntities()
     return removed
 end
 
+function Registry:ValidateEntityEntry(entry)
+    if not entry or not entry.entity then return true end
+    if entry.registryType ~= "entity" and entry.registryType ~= "localEntity" then return true end
+    
+    if not Entity:IsValid(entry.entity) then
+        local storage = GetStorageByType(entry.registryType)
+        if storage then
+            RemoveEntry(storage, entry.id)
+            return false
+        end
+    end
+    
+    return true
+end
+
 function Registry:GetEntityRegistrations(entity)
     local results = {}
     
     for _, storage in ipairs({ self.entities, self.localEntities }) do
         for _, entry in pairs(storage) do
-            if entry.entity == entity and entry.enabled then
+            if self:ValidateEntityEntry(entry) and entry.entity == entity and entry.enabled then
                 results[#results + 1] = entry
             end
         end
@@ -772,7 +787,7 @@ end)
 
 CreateThread(function()
     while true do
-        Wait(30000)
+        Wait(10000) -- Check every 10 seconds instead of 30
         Registry:CleanupInvalidEntities()
     end
 end)

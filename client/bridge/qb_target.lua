@@ -103,6 +103,7 @@ local function ConvertOption(opt, defaultDist)
     local originalCanInteract = nil
     if opt.canInteract then
         local original = opt.canInteract
+        local optionName = opt.label or opt.name or 'unknown'
         originalCanInteract = function(entity, distance, coords, name, bone)
             local data = CreateDataObject(entity, coords, opt)
             data.distance = distance
@@ -118,7 +119,7 @@ local function ConvertOption(opt, defaultDist)
             if ok then return result == true or result == nil end
 
             if Config and Config.Debug and Config.Debug.enabled then
-                print('^3[nbl-target] qb-target canInteract failed for "' .. tostring(opt.label or opt.name) .. '"^7')
+                print('^1[nbl-target] qb-target canInteract error for "' .. tostring(optionName) .. '": ' .. tostring(result) .. '^7')
             end
             return false
         end
@@ -130,13 +131,16 @@ local function ConvertOption(opt, defaultDist)
 
     if opt.action then
         local original = opt.action
+        local optionName = opt.label or opt.name or 'unknown'
         converted.onSelect = function(entity, coords)
             local data = CreateDataObject(entity, coords, opt)
             local ok, err = pcall(original, data)
             if not ok then
                 ok, err = pcall(original, entity)
-                if not ok and Config and Config.Debug and Config.Debug.enabled then
-                    print('^1[nbl-target] qb-target action error: ' .. tostring(err) .. '^7')
+                if not ok then
+                    if Config and Config.Debug and Config.Debug.enabled then
+                        print('^1[nbl-target] qb-target action error for "' .. tostring(optionName) .. '": ' .. tostring(err) .. '^7')
+                    end
                 end
             end
         end

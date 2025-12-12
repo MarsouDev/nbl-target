@@ -8,9 +8,20 @@ local IsActive = false
 
 local DimensionsCache = {}
 
+local function CanSafelyUseOutline(entity)
+    if not Entity:IsValid(entity) then return false end
+    
+    local playerPed = PlayerPedId()
+    if entity == playerPed then return false end
+    
+    local entityType = GetEntityType(entity)
+    if entityType == 1 then return false end
+    
+    return entityType == 2 or entityType == 3
+end
+
 local function SetOutline(entity, enabled)
-    if not entity or entity == 0 then return false end
-    if GetEntityType(entity) == 0 then return false end
+    if not CanSafelyUseOutline(entity) then return false end
     
     SetEntityDrawOutline(entity, enabled)
     return true
@@ -39,8 +50,7 @@ function Visual:SetActive(active)
 end
 
 function Visual:IsEntityValid(entity)
-    if not entity or entity == 0 then return false end
-    return GetEntityType(entity) ~= 0
+    return Entity:IsValid(entity)
 end
 
 function Visual:GetEntityType(entity)
@@ -74,6 +84,8 @@ function Visual:CanUseOutline(entity)
     if not outlineConfig.enabled then return false end
     if not self:IsEntityValid(entity) then return false end
     
+    if not CanSafelyUseOutline(entity) then return false end
+    
     local playerPed = PlayerPedId()
     if entity == playerPed then
         return outlineConfig.allowedTypes.self == true
@@ -103,10 +115,7 @@ end
 function Visual:GetDistanceToEntity(entity)
     if not self:IsEntityValid(entity) then return math.huge end
     
-    local playerCoords = GetEntityCoords(PlayerPedId())
-    local entityCoords = GetEntityCoords(entity)
-    
-    return #(playerCoords - entityCoords)
+    return Entity:GetDistance(entity, nil)
 end
 
 function Visual:AddOutline(entity)

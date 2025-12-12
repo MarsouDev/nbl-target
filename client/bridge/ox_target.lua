@@ -83,19 +83,24 @@ local function ConvertOption(opt)
     local originalCanInteract = nil
     if opt.canInteract then
         local original = opt.canInteract
+        local optionName = opt.label or opt.name or 'unknown'
         originalCanInteract = function(entity, distance, coords, name, bone)
             local data = CreateDataObject(entity, coords, opt)
             data.distance = distance
             data.bone = bone
 
             local ok, result = pcall(original, data)
-            if ok then return result == true or result == nil end
+            if ok then 
+                return result == true or result == nil 
+            end
 
             ok, result = pcall(original, entity, distance, coords, name, bone)
-            if ok then return result == true or result == nil end
+            if ok then 
+                return result == true or result == nil 
+            end
 
             if Config and Config.Debug and Config.Debug.enabled then
-                print('^3[nbl-target] ox_target canInteract failed for "' .. tostring(opt.label or opt.name) .. '"^7')
+                print('^1[nbl-target] ox_target canInteract error for "' .. tostring(optionName) .. '": ' .. tostring(result) .. '^7')
             end
             return false
         end
@@ -107,11 +112,14 @@ local function ConvertOption(opt)
 
     if opt.onSelect then
         local original = opt.onSelect
+        local optionName = opt.label or opt.name or 'unknown'
         converted.onSelect = function(entity, coords)
             local data = CreateDataObject(entity, coords, opt)
             local ok, err = pcall(original, data)
-            if not ok and Config and Config.Debug and Config.Debug.enabled then
-                print('^1[nbl-target] ox_target onSelect error: ' .. tostring(err) .. '^7')
+            if not ok then
+                if Config and Config.Debug and Config.Debug.enabled then
+                    print('^1[nbl-target] ox_target onSelect error for "' .. tostring(optionName) .. '": ' .. tostring(err) .. '^7')
+                end
             end
         end
     elseif opt.export then
@@ -125,8 +133,10 @@ local function ConvertOption(opt)
                     local data = CreateDataObject(entity, coords, opt)
                     if exports[resName] and exports[resName][expName] then
                         local ok, err = pcall(exports[resName][expName], data)
-                        if not ok and Config and Config.Debug and Config.Debug.enabled then
-                            print('^1[nbl-target] ox_target export "' .. exportStr .. '" error: ' .. tostring(err) .. '^7')
+                        if not ok then
+                            if Config and Config.Debug and Config.Debug.enabled then
+                                print('^1[nbl-target] ox_target export "' .. exportStr .. '" error: ' .. tostring(err) .. '^7')
+                            end
                         end
                     elseif Config and Config.Debug and Config.Debug.enabled then
                         print('^3[nbl-target] ox_target export not found: ' .. exportStr .. '^7')

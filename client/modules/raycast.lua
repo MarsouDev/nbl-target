@@ -4,19 +4,49 @@ local CameraCache = {
     lastUpdate = 0,
     position = vector3(0, 0, 0),
     rotation = vector3(0, 0, 0),
-    fov = 0
+    fov = 0,
+    camRight = nil,
+    camForward = nil,
+    camUp = nil,
+    camPos = nil,
+    matrixValid = false
 }
 
 local ScreenResolution = { x = 1920, y = 1080, lastUpdate = 0 }
 local MapObjectHashes = nil
+local MapObjectCache = {}
+local MapObjectCacheTime = 0
+local MapObjectCachePos = vector3(0, 0, 0)
 
 local function UpdateCameraCache()
     local now = GetGameTimer()
-    if now - CameraCache.lastUpdate < 16 then return end
+    if now - CameraCache.lastUpdate < 16 and CameraCache.matrixValid then return end
     
     CameraCache.position = GetGameplayCamCoord()
     CameraCache.rotation = GetGameplayCamRot(0)
     CameraCache.fov = GetGameplayCamFov()
+    
+    local cam = CreateCamWithParams("DEFAULT_SCRIPTED_CAMERA", 
+        CameraCache.position.x, CameraCache.position.y, CameraCache.position.z,
+        CameraCache.rotation.x, CameraCache.rotation.y, CameraCache.rotation.z,
+        CameraCache.fov, 0, 2)
+    
+    if cam and cam ~= 0 then
+        local camRight, camForward, camUp, camPos = GetCamMatrix(cam)
+        if camForward then
+            CameraCache.camRight = camRight
+            CameraCache.camForward = camForward
+            CameraCache.camUp = camUp
+            CameraCache.camPos = camPos
+            CameraCache.matrixValid = true
+        else
+            CameraCache.matrixValid = false
+        end
+        DestroyCam(cam, true)
+    else
+        CameraCache.matrixValid = false
+    end
+    
     CameraCache.lastUpdate = now
 end
 
@@ -40,8 +70,7 @@ local function CalculateRayDirection(screenPos, camPos, camRight, camForward, ca
 end
 
 local function IsEntityUsable(entity)
-    if not entity or entity == 0 then return false end
-    return GetEntityType(entity) ~= 0
+    return Entity:IsValid(entity)
 end
 
 local function GetMapObjectHashes()
@@ -64,6 +93,14 @@ end
 local function FindNearbyMapObject(worldPos)
     if not worldPos then return 0 end
     
+    local now = GetGameTimer()
+    local cacheAge = now - MapObjectCacheTime
+    local distToCache = #(worldPos - MapObjectCachePos)
+    
+    if cacheAge < 100 and distToCache < 1.0 and MapObjectCache.result then
+        return MapObjectCache.result
+    end
+    
     local searchRadius = Config.MapObjectSearchRadius or 2.0
     local maxAcceptDist = Config.MapObjectMaxDistance or 1.2
     
@@ -73,7 +110,24 @@ local function FindNearbyMapObject(worldPos)
     local closestObj = 0
     local closestDist = maxAcceptDist
     
+    local allModels = {}
+    local seen = {}
+    
     for _, modelHash in ipairs(registeredModels) do
+        if not seen[modelHash] then
+            seen[modelHash] = true
+            allModels[#allModels + 1] = modelHash
+        end
+    end
+    
+    for _, modelHash in ipairs(configModels) do
+        if not seen[modelHash] then
+            seen[modelHash] = true
+            allModels[#allModels + 1] = modelHash
+        end
+    end
+    
+    for _, modelHash in ipairs(allModels) do
         local obj = GetClosestObjectOfType(worldPos.x, worldPos.y, worldPos.z, searchRadius, modelHash, false, false, false)
         if obj and obj ~= 0 then
             local objCoords = GetEntityCoords(obj)
@@ -85,17 +139,12 @@ local function FindNearbyMapObject(worldPos)
         end
     end
     
-    for _, modelHash in ipairs(configModels) do
-        local obj = GetClosestObjectOfType(worldPos.x, worldPos.y, worldPos.z, searchRadius, modelHash, false, false, false)
-        if obj and obj ~= 0 then
-            local objCoords = GetEntityCoords(obj)
-            local dist = #(worldPos - objCoords)
-            if dist < closestDist then
-                closestDist = dist
-                closestObj = obj
-            end
-        end
-    end
+    MapObjectCache = {
+        result = closestObj,
+        pos = worldPos
+    }
+    MapObjectCachePos = worldPos
+    MapObjectCacheTime = now
     
     return closestObj
 end
@@ -126,21 +175,15 @@ function Raycast:FromScreen(screenPos, maxDistance, flags, ignoreEntity)
     UpdateCameraCache()
     UpdateScreenResolution()
     
-    local pos = CameraCache.position
-    local rot = CameraCache.rotation
+    if not CameraCache.matrixValid then
+        return false, vector3(0, 0, 0), vector3(0, 0, 0), 0, 0
+    end
+    
+    local camPos = CameraCache.camPos
+    local camRight = CameraCache.camRight
+    local camForward = CameraCache.camForward
+    local camUp = CameraCache.camUp
     local fov = CameraCache.fov
-    
-    local cam = CreateCamWithParams("DEFAULT_SCRIPTED_CAMERA", pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, fov, 0, 2)
-    if not cam or cam == 0 then
-        return false, vector3(0, 0, 0), vector3(0, 0, 0), 0, 0
-    end
-    
-    local camRight, camForward, camUp, camPos = GetCamMatrix(cam)
-    DestroyCam(cam, true)
-    
-    if not camForward then
-        return false, vector3(0, 0, 0), vector3(0, 0, 0), 0, 0
-    end
     
     local target = CalculateRayDirection(screenPos, camPos, camRight, camForward, camUp, fov)
     local direction = (target - camPos) * maxDistance
@@ -172,21 +215,15 @@ end
 function Raycast:ScreenToWorld(screenPos, distance)
     UpdateCameraCache()
     
-    local pos = CameraCache.position
-    local rot = CameraCache.rotation
-    local fov = CameraCache.fov
+    if not CameraCache.matrixValid then
+        return CameraCache.position
+    end
     
-    local cam = CreateCamWithParams("DEFAULT_SCRIPTED_CAMERA", pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, fov, 0, 2)
-    if not cam or cam == 0 then return pos end
-    
-    local _, camForward, _, camPos = GetCamMatrix(cam)
-    DestroyCam(cam, true)
-    
-    if not camForward then return pos end
-    
-    return camPos + (camForward * distance)
+    return CameraCache.camPos + (CameraCache.camForward * distance)
 end
 
 function Raycast:ReloadMapObjectHashes()
     MapObjectHashes = nil
+    MapObjectCache = {}
+    MapObjectCacheTime = 0
 end

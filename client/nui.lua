@@ -39,6 +39,8 @@ function NUI:Close(clearSubItems)
     
     local entityToClean = self.currentEntity
     
+    SetNuiFocus(false, false)
+    
     self.isOpen = false
     self.currentEntity = nil
     self.currentEntityType = nil
@@ -47,10 +49,8 @@ function NUI:Close(clearSubItems)
     self.lastOptionsHash = nil
     self.refreshPaused = false
     
-    if entityToClean then
-        if GetEntityType(entityToClean) ~= 0 then
-            SetEntityDrawOutline(entityToClean, false)
-        end
+    if entityToClean and Entity:IsValid(entityToClean) then
+        Visual:ClearOutline(entityToClean)
     end
     
     Visual:UnlockEntity()
@@ -61,7 +61,6 @@ function NUI:Close(clearSubItems)
     end
     
     SendNUIMessage({ action = "close" })
-    SetNuiFocus(false, false)
 end
 
 function NUI:HashOptions(options)
@@ -70,28 +69,36 @@ function NUI:HashOptions(options)
     local count = #options
     if count == 0 then return "" end
     
-    local hash = count
-    for i = 1, count do
-        local opt = options[i]
-        hash = hash + opt.id + (opt.checked and 1 or 0)
+    local hashParts = { count }
+    
+    local function HashOption(opt)
+        if not opt then return end
+        hashParts[#hashParts + 1] = opt.id or 0
+        hashParts[#hashParts + 1] = opt.label or ""
+        hashParts[#hashParts + 1] = opt.icon or ""
+        hashParts[#hashParts + 1] = opt.name or ""
+        hashParts[#hashParts + 1] = opt.checkbox and 1 or 0
+        hashParts[#hashParts + 1] = opt.checked and 1 or 0
+        hashParts[#hashParts + 1] = opt.shouldClose and 1 or 0
         
-        local items = opt.items
-        if items then
-            local itemCount = #items
-            hash = hash + itemCount
-            for j = 1, itemCount do
-                local sub = items[j]
-                hash = hash + sub.id + (sub.checked and 1 or 0)
+        if opt.items then
+            hashParts[#hashParts + 1] = #opt.items
+            for j = 1, #opt.items do
+                HashOption(opt.items[j])
             end
         end
     end
     
-    return hash
+    for i = 1, count do
+        HashOption(options[i])
+    end
+    
+    return table.concat(hashParts, "|")
 end
 
 function NUI:UpdateWorldPos()
-    if not self.currentEntity or self.currentEntity == 0 then return end
-    if GetEntityType(self.currentEntity) == 0 then return end
+    if not self.currentEntity then return end
+    if not Entity:IsValid(self.currentEntity) then return end
     
     self.currentWorldPos = GetEntityCoords(self.currentEntity)
 end
@@ -102,7 +109,7 @@ function NUI:Refresh()
     local entity = self.currentEntity
     if not entity then return false end
     
-    if GetEntityType(entity) == 0 then
+    if not Entity:IsValid(entity) then
         self:Close()
         return false
     end
@@ -152,8 +159,7 @@ function NUI:CheckDistance()
         return true
     end
     
-    local entityType = GetEntityType(entity)
-    if entityType == 0 then
+    if not Entity:IsValid(entity) then
         self:Close()
         return false
     end
@@ -163,6 +169,8 @@ function NUI:CheckDistance()
     if entity == playerPed then
         return true
     end
+    
+    local entityType = GetEntityType(entity)
     
     if entityType == 2 then
         local vehicle = GetVehiclePedIsIn(playerPed, false)
@@ -183,9 +191,7 @@ function NUI:CheckDistance()
     
     self:UpdateWorldPos()
     
-    local playerCoords = GetEntityCoords(playerPed)
-    local entityCoords = GetEntityCoords(entity)
-    local distance = #(playerCoords - entityCoords)
+    local distance = Entity:GetDistance(entity, self.currentWorldPos)
     
     if distance > Config.Target.maxDistance + 10.0 then
         self:Close()
@@ -218,14 +224,15 @@ RegisterNUICallback("select", function(data, cb)
     local shouldClose = data.shouldClose
     
     NUI:Close(false)
-    Wait(10)
     
-    Registry:OnSelect(optionId, entity, worldPos)
-    Registry:ClearActiveSubItems()
-    
-    if shouldClose and Target_Deactivate then
-        Target_Deactivate()
-    end
+    CreateThread(function()
+        Registry:OnSelect(optionId, entity, worldPos)
+        Registry:ClearActiveSubItems()
+        
+        if shouldClose and Target_Deactivate then
+            Target_Deactivate()
+        end
+    end)
 end)
 
 RegisterNUICallback("close", function(_, cb)
@@ -260,4 +267,5 @@ RegisterNUICallback("check", function(data, cb)
     
     Registry:OnCheck(optionId, NUI.currentEntity, NUI.currentWorldPos, data.checked == true)
 end)
+
 

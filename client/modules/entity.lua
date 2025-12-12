@@ -11,7 +11,7 @@ local ENTITY_TYPES = {
     UNKNOWN = "unknown"
 }
 
-local function IsEntitySafe(entity)
+function Entity:IsValid(entity)
     if not entity or entity == 0 then
         return false
     end
@@ -23,21 +23,27 @@ function Entity:GetType(entity, worldPos)
     if not entity or entity == 0 then
         if worldPos then
             local groundZ = GetHeightmapBottomZForPosition(worldPos.x, worldPos.y)
-            if worldPos.z - groundZ < 2.0 then
+            local waterZ = GetWaterHeight(worldPos.x, worldPos.y, worldPos.z)
+            
+            local distToGround = math.abs(worldPos.z - groundZ)
+            local distToWater = waterZ > 0 and math.abs(worldPos.z - waterZ) or math.huge
+            
+            if distToGround < 5.0 or distToWater < 2.0 then
                 return ENTITY_TYPES.GROUND
             end
         end
         return ENTITY_TYPES.SKY
     end
     
-    local entityType = GetEntityType(entity)
-    if entityType == 0 then
+    if not self:IsValid(entity) then
         return ENTITY_TYPES.UNKNOWN
     end
     
     if entity == PlayerPedId() then
         return ENTITY_TYPES.SELF
     end
+    
+    local entityType = GetEntityType(entity)
     
     if entityType == 2 then
         return ENTITY_TYPES.VEHICLE
@@ -55,26 +61,34 @@ function Entity:GetType(entity, worldPos)
     return ENTITY_TYPES.UNKNOWN
 end
 
-function Entity:IsValid(entity)
-    return IsEntitySafe(entity)
-end
-
 function Entity:GetModel(entity)
-    if not IsEntitySafe(entity) then return 0 end
+    if not self:IsValid(entity) then return 0 end
     return GetEntityModel(entity)
 end
 
 function Entity:GetCoords(entity)
-    if not IsEntitySafe(entity) then return vector3(0, 0, 0) end
+    if not self:IsValid(entity) then return vector3(0, 0, 0) end
     return GetEntityCoords(entity)
 end
 
+local CachedPlayerCoords = vector3(0, 0, 0)
+local CachedPlayerCoordsTime = 0
+
+local function GetCachedPlayerCoords()
+    local now = GetGameTimer()
+    if now - CachedPlayerCoordsTime > 0 then
+        CachedPlayerCoords = GetEntityCoords(PlayerPedId())
+        CachedPlayerCoordsTime = now
+    end
+    return CachedPlayerCoords
+end
+
 function Entity:GetDistance(entity, worldPos)
-    local playerCoords = GetEntityCoords(PlayerPedId())
+    local playerCoords = GetCachedPlayerCoords()
     
     local targetCoords = worldPos
     if not targetCoords then
-        if not IsEntitySafe(entity) then return math.huge end
+        if not self:IsValid(entity) then return math.huge end
         targetCoords = GetEntityCoords(entity)
     end
     
@@ -84,7 +98,7 @@ end
 function Entity:GetVehicleInfo(entity)
     local defaultInfo = { name = "Unknown", model = 0, class = 0, plate = "" }
     
-    if not IsEntitySafe(entity) then return defaultInfo end
+    if not self:IsValid(entity) then return defaultInfo end
     if GetEntityType(entity) ~= 2 then return defaultInfo end
     
     local model = GetEntityModel(entity)
@@ -101,7 +115,7 @@ end
 function Entity:GetPedInfo(entity)
     local defaultInfo = { isPlayer = false, isDead = false, model = 0 }
     
-    if not IsEntitySafe(entity) then return defaultInfo end
+    if not self:IsValid(entity) then return defaultInfo end
     if GetEntityType(entity) ~= 1 then return defaultInfo end
     
     return {

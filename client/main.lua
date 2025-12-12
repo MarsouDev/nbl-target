@@ -27,18 +27,10 @@ local function Deactivate()
     State.active = false
     Visual:SetActive(false)
     
-    local entityToClean = State.lastHover and State.lastHover.entity
-    
+    State.lastHover = nil
     NUI:Close()
     Visual:ClearAll()
     
-    if entityToClean and entityToClean ~= 0 then
-        if GetEntityType(entityToClean) ~= 0 then
-            SetEntityDrawOutline(entityToClean, false)
-        end
-    end
-    
-    State.lastHover = nil
     SetMouseCursorSprite(0)
     
     if Config.Debug.enabled then
@@ -84,7 +76,7 @@ CreateThread(function()
                 State.lastHover = Visual:ProcessHover(State.cursorPos)
                 
                 local hover = State.lastHover
-                SetMouseCursorSprite(hover and hover.entity and 5 or 0)
+                SetMouseCursorSprite(hover and hover.entity and hover.hasOptions and 5 or 0)
             end
             
             if IsDisabledControlJustPressed(0, selectKey) and CanClick() then
@@ -92,8 +84,12 @@ CreateThread(function()
                 
                 local hover = State.lastHover
                 if not isMenuOpen and hover and hover.hasOptions then
-                    local options = Registry:GetAvailableOptions(hover.entity, hover.entityType, hover.worldPos)
-                    NUI:Open(options, State.cursorPos, hover.entity, hover.entityType, hover.worldPos)
+                    if hover.entity == 0 or Entity:IsValid(hover.entity) then
+                        local options = Registry:GetAvailableOptions(hover.entity, hover.entityType, hover.worldPos)
+                        if #options > 0 then
+                            NUI:Open(options, State.cursorPos, hover.entity, hover.entityType, hover.worldPos)
+                        end
+                    end
                 end
             end
             

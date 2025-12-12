@@ -26,7 +26,7 @@ function Entity:GetType(entity, worldPos)
             local waterZ = GetWaterHeight(worldPos.x, worldPos.y, worldPos.z)
             
             local distToGround = math.abs(worldPos.z - groundZ)
-            local distToWater = waterZ > 0 and math.abs(worldPos.z - waterZ) or math.huge
+            local distToWater = (type(waterZ) == "number" and waterZ > 0) and math.abs(worldPos.z - waterZ) or math.huge
             
             if distToGround < 5.0 or distToWater < 2.0 then
                 return ENTITY_TYPES.GROUND

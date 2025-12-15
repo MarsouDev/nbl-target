@@ -2,6 +2,7 @@ Registry = {
     entities = {},
     localEntities = {},
     models = {},
+    bones = {},
     globalTypes = {},
     
     byName = {},
@@ -13,6 +14,33 @@ Registry = {
     enabled = true,
     activeSubItems = {},
     subItemIdMap = {}
+}
+
+local RESERVED_KEYS = {
+    id = true,
+    label = true,
+    name = true,
+    icon = true,
+    distance = true,
+    enabled = true,
+    shouldClose = true,
+    resource = true,
+    canInteract = true,
+    onSelect = true,
+    onCheck = true,
+    checkbox = true,
+    checked = true,
+    export = true,
+    event = true,
+    serverEvent = true,
+    command = true,
+    items = true,
+    registryType = true,
+    entity = true,
+    model = true,
+    bone = true,
+    bones = true,
+    entityType = true
 }
 
 local function GenerateId()
@@ -45,6 +73,21 @@ local function NormalizeModels(models)
     else
         return { models }
     end
+end
+
+local function NormalizeBones(bones)
+    if type(bones) == "table" then
+        local result = {}
+        for i, bone in ipairs(bones) do
+            result[i] = type(bone) == "string" and bone or tostring(bone)
+        end
+        return result
+    elseif type(bones) == "string" then
+        return { bones }
+    elseif type(bones) == "number" then
+        return { tostring(bones) }
+    end
+    return nil
 end
 
 local function NormalizeEntities(entities)
@@ -80,32 +123,34 @@ local function CreateHandler(ids, registryType)
         return removed > 0
     end
     
-    function handler:setLabel(label)
-        return UpdateEntries(self, "label", label)
+    function handler:setLabel(label) return UpdateEntries(self, "label", label) end
+    function handler:setIcon(icon) return UpdateEntries(self, "icon", icon) end
+    function handler:setEnabled(enabled) return UpdateEntries(self, "enabled", enabled) end
+    function handler:setDistance(distance) return UpdateEntries(self, "distance", distance) end
+    function handler:setCanInteract(fn) return UpdateEntries(self, "canInteract", fn) end
+    function handler:setOnSelect(fn) return UpdateEntries(self, "onSelect", fn) end
+    function handler:setOnCheck(fn) return UpdateEntries(self, "onCheck", fn) end
+    
+    function handler:set(key, value) return UpdateEntries(self, key, value) end
+    
+    function handler:get(key)
+        if #self.ids == 0 then return nil end
+        local entry = Registry:GetById(self.ids[1])
+        return entry and entry[key] or nil
     end
     
-    function handler:setIcon(icon)
-        return UpdateEntries(self, "icon", icon)
-    end
-    
-    function handler:setEnabled(enabled)
-        return UpdateEntries(self, "enabled", enabled)
-    end
-    
-    function handler:setDistance(distance)
-        return UpdateEntries(self, "distance", distance)
-    end
-    
-    function handler:setCanInteract(fn)
-        return UpdateEntries(self, "canInteract", fn)
-    end
-    
-    function handler:setOnSelect(fn)
-        return UpdateEntries(self, "onSelect", fn)
-    end
-    
-    function handler:setOnCheck(fn)
-        return UpdateEntries(self, "onCheck", fn)
+    function handler:getData()
+        if #self.ids == 0 then return nil end
+        local entry = Registry:GetById(self.ids[1])
+        if not entry then return nil end
+        
+        local data = {}
+        for k, v in pairs(entry) do
+            if not RESERVED_KEYS[k] then
+                data[k] = v
+            end
+        end
+        return data
     end
     
     function handler:setChecked(checked)
@@ -174,8 +219,15 @@ local function CreateEntry(id, baseData, options)
         event = options.event,
         serverEvent = options.serverEvent,
         command = options.command,
-        items = hasItems and options.items or nil
+        items = hasItems and options.items or nil,
+        bones = options.bones and NormalizeBones(options.bones) or nil
     }
+    
+    for key, value in pairs(options) do
+        if not RESERVED_KEYS[key] and entry[key] == nil then
+            entry[key] = value
+        end
+    end
     
     for key, value in pairs(baseData) do
         entry[key] = value
@@ -214,22 +266,15 @@ local function GetStorageByType(registryType)
         entity = Registry.entities,
         localEntity = Registry.localEntities,
         model = Registry.models,
+        bone = Registry.bones,
         global = Registry.globalTypes
     }
     return storageMap[registryType]
 end
 
-function Registry:Enable()
-    self.enabled = true
-end
-
-function Registry:Disable()
-    self.enabled = false
-end
-
-function Registry:IsEnabled()
-    return self.enabled
-end
+function Registry:Enable() self.enabled = true end
+function Registry:Disable() self.enabled = false end
+function Registry:IsEnabled() return self.enabled end
 
 function Registry:AddEntity(entities, options)
     if not entities then
@@ -309,6 +354,28 @@ function Registry:AddModel(models, options)
     return CreateHandler(ids, "model")
 end
 
+function Registry:AddBone(bones, options)
+    if not bones then
+        if Config.Debug.enabled then
+            print("^1[nbl-target]^7 AddBone: Invalid bone")
+        end
+        return nil
+    end
+    
+    local normalizedBones = NormalizeBones(bones)
+    if not normalizedBones then return nil end
+    
+    local ids = {}
+    
+    for _, boneName in ipairs(normalizedBones) do
+        local id = GenerateId()
+        self.bones[id] = CreateEntry(id, { bone = boneName, registryType = "bone" }, options)
+        ids[#ids + 1] = id
+    end
+    
+    return CreateHandler(ids, "bone")
+end
+
 local function IsOptionsArray(options)
     if type(options) ~= "table" then return false end
     local first = options[1]
@@ -344,6 +411,7 @@ function Registry:AddGlobalOption(entityType, options) return self:AddGlobalType
 function Registry:RemoveEntity(id) return RemoveEntry(self.entities, id) end
 function Registry:RemoveLocalEntity(id) return RemoveEntry(self.localEntities, id) end
 function Registry:RemoveModel(id) return RemoveEntry(self.models, id) end
+function Registry:RemoveBone(id) return RemoveEntry(self.bones, id) end
 function Registry:RemoveGlobalType(id) return RemoveEntry(self.globalTypes, id) end
 function Registry:RemoveGlobalOption(id) return self:RemoveGlobalType(id) end
 function Registry:RemoveGlobalVehicle(id) return self:RemoveGlobalType(id) end
@@ -449,6 +517,21 @@ function Registry:GetModelRegistrations(entity)
     return results
 end
 
+function Registry:GetBoneRegistrations(entity, boneId)
+    if not boneId then return {} end
+    
+    local boneStr = tostring(boneId)
+    local results = {}
+    
+    for _, entry in pairs(self.bones) do
+        if entry.bone == boneStr and entry.enabled then
+            results[#results + 1] = entry
+        end
+    end
+    
+    return results
+end
+
 function Registry:GetGlobalTypeRegistrations(entityType)
     local results = {}
     
@@ -461,32 +544,57 @@ function Registry:GetGlobalTypeRegistrations(entityType)
     return results
 end
 
-function Registry:GetAllRegistrations(entity, entityType)
+local function MatchesBones(entry, boneId)
+    if not entry.bones then return true end
+    if not boneId then return false end
+    
+    local boneStr = tostring(boneId)
+    for _, bone in ipairs(entry.bones) do
+        if bone == boneStr then return true end
+    end
+    return false
+end
+
+function Registry:GetAllRegistrations(entity, entityType, boneId)
     local results = {}
     local count = 0
     
     local entityRegs = self:GetEntityRegistrations(entity)
     for i = 1, #entityRegs do
-        count = count + 1
-        results[count] = entityRegs[i]
+        if MatchesBones(entityRegs[i], boneId) then
+            count = count + 1
+            results[count] = entityRegs[i]
+        end
     end
     
     local modelRegs = self:GetModelRegistrations(entity)
     for i = 1, #modelRegs do
-        count = count + 1
-        results[count] = modelRegs[i]
+        if MatchesBones(modelRegs[i], boneId) then
+            count = count + 1
+            results[count] = modelRegs[i]
+        end
+    end
+    
+    if boneId then
+        local boneRegs = self:GetBoneRegistrations(entity, boneId)
+        for i = 1, #boneRegs do
+            count = count + 1
+            results[count] = boneRegs[i]
+        end
     end
     
     local globalRegs = self:GetGlobalTypeRegistrations(entityType)
     for i = 1, #globalRegs do
-        count = count + 1
-        results[count] = globalRegs[i]
+        if MatchesBones(globalRegs[i], boneId) then
+            count = count + 1
+            results[count] = globalRegs[i]
+        end
     end
     
     return results
 end
 
-function Registry:CanInteract(registration, entity, worldPos, bone, cachedDistance)
+function Registry:CanInteract(registration, entity, worldPos, boneId, cachedDistance)
     if not registration.enabled then return false end
     
     local distance = cachedDistance or Entity:GetDistance(entity, worldPos)
@@ -496,7 +604,21 @@ function Registry:CanInteract(registration, entity, worldPos, bone, cachedDistan
     
     local canInteractFn = registration.canInteract
     if canInteractFn then
-        local success, result = pcall(canInteractFn, entity, distance, worldPos, registration.name, bone)
+        local data = {
+            entity = entity,
+            coords = worldPos,
+            distance = distance,
+            bone = boneId,
+            name = registration.name
+        }
+        
+        for k, v in pairs(registration) do
+            if not RESERVED_KEYS[k] and data[k] == nil then
+                data[k] = v
+            end
+        end
+        
+        local success, result = pcall(canInteractFn, data)
         
         if not success then
             if Config.Debug.enabled then
@@ -511,8 +633,8 @@ function Registry:CanInteract(registration, entity, worldPos, bone, cachedDistan
     return true
 end
 
-function Registry:HasAvailableOptions(entity, entityType, worldPos)
-    local registrations = self:GetAllRegistrations(entity, entityType)
+function Registry:HasAvailableOptions(entity, entityType, worldPos, boneId)
+    local registrations = self:GetAllRegistrations(entity, entityType, boneId)
     local regCount = #registrations
     
     if regCount == 0 then return false end
@@ -520,7 +642,7 @@ function Registry:HasAvailableOptions(entity, entityType, worldPos)
     local distance = Entity:GetDistance(entity, worldPos)
     
     for i = 1, regCount do
-        if self:CanInteract(registrations[i], entity, worldPos, nil, distance) then
+        if self:CanInteract(registrations[i], entity, worldPos, boneId, distance) then
             return true
         end
     end
@@ -579,7 +701,21 @@ function Registry:ProcessSubItems(items, entity, worldPos, parentId, depth)
         local canShow = true
         
         if finalCanInteract then
-            local success, result = pcall(finalCanInteract, entity, distance, worldPos, item.name)
+            local data = {
+                entity = entity,
+                coords = worldPos,
+                distance = distance,
+                bone = nil,
+                name = item.name
+            }
+            
+            for k, v in pairs(item) do
+                if not RESERVED_KEYS[k] and data[k] == nil then
+                    data[k] = v
+                end
+            end
+            
+            local success, result = pcall(finalCanInteract, data)
             canShow = success and result == true
         end
         
@@ -600,7 +736,7 @@ function Registry:ProcessSubItems(items, entity, worldPos, parentId, depth)
                 hasItems = false
             end
             
-            self.activeSubItems[subItemId] = {
+            local subItemEntry = {
                 id = subItemId,
                 parentId = parentId,
                 label = item.label,
@@ -620,6 +756,14 @@ function Registry:ProcessSubItems(items, entity, worldPos, parentId, depth)
                 originalItems = hasItems and item.items or nil
             }
             
+            for k, v in pairs(item) do
+                if not RESERVED_KEYS[k] and subItemEntry[k] == nil then
+                    subItemEntry[k] = v
+                end
+            end
+            
+            self.activeSubItems[subItemId] = subItemEntry
+            
             local nestedItems = hasItems and self:ProcessSubItems(item.items, entity, worldPos, subItemId, depth + 1) or nil
             
             filtered[#filtered + 1] = {
@@ -638,8 +782,8 @@ function Registry:ProcessSubItems(items, entity, worldPos, parentId, depth)
     return #filtered > 0 and filtered or nil
 end
 
-function Registry:GetAvailableOptions(entity, entityType, worldPos)
-    local registrations = self:GetAllRegistrations(entity, entityType)
+function Registry:GetAvailableOptions(entity, entityType, worldPos, boneId)
+    local registrations = self:GetAllRegistrations(entity, entityType, boneId)
     local regCount = #registrations
     
     if regCount == 0 then return {} end
@@ -649,7 +793,7 @@ function Registry:GetAvailableOptions(entity, entityType, worldPos)
     
     for i = 1, regCount do
         local reg = registrations[i]
-        if self:CanInteract(reg, entity, worldPos, nil, distance) then
+        if self:CanInteract(reg, entity, worldPos, boneId, distance) then
             local hasCheckbox = reg.checkbox == true
             
             local processedItems = nil
@@ -673,8 +817,21 @@ function Registry:GetAvailableOptions(entity, entityType, worldPos)
     return available
 end
 
-function Registry:ExecuteAction(registration, entity, worldPos)
+function Registry:ExecuteAction(registration, entity, worldPos, boneId)
     if not registration then return end
+    
+    local data = {
+        entity = entity,
+        coords = worldPos,
+        distance = Entity:GetDistance(entity, worldPos),
+        bone = boneId
+    }
+    
+    for k, v in pairs(registration) do
+        if not RESERVED_KEYS[k] and data[k] == nil then
+            data[k] = v
+        end
+    end
     
     if registration.export then
         local dotIndex = registration.export:find("%.")
@@ -683,7 +840,7 @@ function Registry:ExecuteAction(registration, entity, worldPos)
             local exportName = registration.export:sub(dotIndex + 1)
             
             if exports[resourceName] and exports[resourceName][exportName] then
-                local success, err = pcall(exports[resourceName][exportName], entity, worldPos, registration)
+                local success, err = pcall(exports[resourceName][exportName], data)
                 if not success and Config.Debug.enabled then
                     print("^1[nbl-target]^7 Export error: " .. tostring(err))
                 end
@@ -693,12 +850,12 @@ function Registry:ExecuteAction(registration, entity, worldPos)
     end
     
     if registration.event then
-        TriggerEvent(registration.event, entity, worldPos, registration)
+        TriggerEvent(registration.event, data)
         return
     end
     
     if registration.serverEvent then
-        TriggerServerEvent(registration.serverEvent, entity, worldPos, registration)
+        TriggerServerEvent(registration.serverEvent, data)
         return
     end
     
@@ -708,7 +865,7 @@ function Registry:ExecuteAction(registration, entity, worldPos)
     end
     
     if registration.onSelect then
-        local success, err = pcall(registration.onSelect, entity, worldPos, registration)
+        local success, err = pcall(registration.onSelect, data)
         if not success and Config.Debug.enabled then
             print("^1[nbl-target]^7 onSelect error: " .. tostring(err))
         end
@@ -719,30 +876,46 @@ local function FindRegistration(optionId)
     return Registry.entities[optionId]
         or Registry.localEntities[optionId]
         or Registry.models[optionId]
+        or Registry.bones[optionId]
         or Registry.globalTypes[optionId]
         or Registry.activeSubItems[optionId]
 end
 
-function Registry:OnSelect(optionId, entity, worldPos)
+function Registry:OnSelect(optionId, entity, worldPos, boneId)
     local registration = FindRegistration(optionId)
     if registration then
-        self:ExecuteAction(registration, entity, worldPos)
+        self:ExecuteAction(registration, entity, worldPos, boneId)
     end
 end
 
-function Registry:OnCheck(optionId, entity, worldPos, newState)
+function Registry:OnCheck(optionId, entity, worldPos, newState, boneId)
     local registration = FindRegistration(optionId)
     if not registration then return end
     
+    local data = {
+        entity = entity,
+        coords = worldPos,
+        distance = Entity:GetDistance(entity, worldPos),
+        bone = boneId,
+        checked = newState,
+        name = registration.name
+    }
+    
+    for k, v in pairs(registration) do
+        if not RESERVED_KEYS[k] and data[k] == nil then
+            data[k] = v
+        end
+    end
+    
     if registration.onCheck then
-        local success, err = pcall(registration.onCheck, newState, entity, worldPos, registration)
+        local success, err = pcall(registration.onCheck, data)
         if not success and Config.Debug.enabled then
             print("^1[nbl-target]^7 onCheck error: " .. tostring(err))
         end
     elseif registration.event then
-        TriggerEvent(registration.event, newState, entity, worldPos, registration)
+        TriggerEvent(registration.event, data)
     elseif registration.serverEvent then
-        TriggerServerEvent(registration.serverEvent, newState, entity, worldPos, registration)
+        TriggerServerEvent(registration.serverEvent, data)
     end
 end
 
@@ -756,6 +929,7 @@ function Registry:GetById(id)
     return self.entities[id]
         or self.localEntities[id]
         or self.models[id]
+        or self.bones[id]
         or self.globalTypes[id]
 end
 
@@ -787,7 +961,7 @@ end)
 
 CreateThread(function()
     while true do
-        Wait(10000) -- Check every 10 seconds instead of 30
+        Wait(10000)
         Registry:CleanupInvalidEntities()
     end
 end)

@@ -267,7 +267,7 @@ function Visual:ProcessHover(cursorPos)
     local targetConfig = GetTargetConfig()
     local maxDistance = targetConfig.maxDistance
     
-    local hit, worldPos, _, entity = Raycast:FromScreen(cursorPos, maxDistance)
+    local hit, worldPos, _, entity, _, bone = Raycast:FromScreen(cursorPos, maxDistance)
     
     if not hit then
         if CurrentEntity then
@@ -290,7 +290,7 @@ function Visual:ProcessHover(cursorPos)
         
         if distance <= maxDistance then
             local entityType = Entity:GetType(0, worldPos)
-            local hasOptions = Registry:HasAvailableOptions(0, entityType, worldPos)
+            local hasOptions = Registry:HasAvailableOptions(0, entityType, worldPos, nil)
             
             if hasOptions then
                 return {
@@ -298,7 +298,8 @@ function Visual:ProcessHover(cursorPos)
                     entityType = entityType,
                     worldPos = worldPos,
                     distance = distance,
-                    hasOptions = true
+                    hasOptions = true,
+                    bone = nil
                 }
             end
         end
@@ -328,14 +329,15 @@ function Visual:ProcessHover(cursorPos)
     
     self:HighlightEntity(entity)
     
-    local hasOptions = Registry:HasAvailableOptions(entity, entityType, worldPos)
+    local hasOptions = Registry:HasAvailableOptions(entity, entityType, worldPos, bone)
     
     return {
         entity = entity,
         entityType = entityType,
         worldPos = worldPos,
         distance = distance,
-        hasOptions = hasOptions
+        hasOptions = hasOptions,
+        bone = bone
     }
 end
 

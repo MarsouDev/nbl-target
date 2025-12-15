@@ -1,5 +1,5 @@
 --[[
-    NBL Context Menu - Configuration
+    NBL Target - Configuration
     
     All colors use RGBA format: {r, g, b, a}
     r, g, b = 0-255
@@ -37,6 +37,46 @@ Config.Target = {
     
     -- Default interaction distance for options
     defaultDistance = 3.0
+}
+
+-- ============================================================================
+-- VEHICLE BONES (for bone-specific targeting)
+-- ============================================================================
+-- When aiming at a vehicle, the system detects which bone you're closest to.
+-- You can register options that only appear when targeting specific bones.
+-- 
+-- radius = how close (in meters) the raycast hit must be to the bone center
+-- 
+-- Common vehicle bones:
+--   Doors: door_dside_f, door_dside_r, door_pside_f, door_pside_r
+--   Trunk/Hood: boot, bonnet
+--   Wheels: wheel_lf, wheel_rf, wheel_lr, wheel_rr
+--   Seats: seat_dside_f, seat_dside_r, seat_pside_f, seat_pside_r
+--   Engine: engine
+Config.VehicleBones = {
+    -- Front left door
+    ['door_dside_f'] = { radius = 0.8 },
+    -- Front right door
+    ['door_pside_f'] = { radius = 0.8 },
+    -- Rear left door
+    ['door_dside_r'] = { radius = 0.8 },
+    -- Rear right door
+    ['door_pside_r'] = { radius = 0.8 },
+    
+    -- Trunk/Boot
+    ['boot'] = { radius = 1.0 },
+    
+    -- Hood/Bonnet
+    ['bonnet'] = { radius = 1.0 },
+    
+    -- Wheels
+    ['wheel_lf'] = { radius = 0.5 },
+    ['wheel_rf'] = { radius = 0.5 },
+    ['wheel_lr'] = { radius = 0.5 },
+    ['wheel_rr'] = { radius = 0.5 },
+    
+    -- Engine
+    ['engine'] = { radius = 0.8 }
 }
 
 -- ============================================================================

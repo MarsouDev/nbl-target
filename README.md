@@ -1,2221 +1,486 @@
-# NBL Target - Complete Documentation
+# nbl-target
 
-A modern, feature-rich context menu and targeting system for FiveM. Built with performance, flexibility, and ease of use in mind.
+A modern targeting system for FiveM. Point at entities, see context menus, interact.
 
-**🆓 Free & Open Source** - This resource is completely free and open source. No payments, no subscriptions, no hidden costs.
+## Features
 
-**✨ Key Features:**
-- ✅ **Full Compatibility**: Drop-in replacement for `ox_target` and `qb-target` - works with existing scripts without modification
-- ✅ **MAP Props Support**: Automatically detects static world objects (ATMs, vending machines) even inside buildings
-- ✅ **Movement-Friendly**: Menu stays open while moving (in vehicles, walking with peds)
-- ✅ **Sky/Ground Targeting**: Register options for clicking in the sky or on the ground
-- ✅ **Real-time Updates**: Auto-refresh options and checkboxes based on conditions
-- ✅ **Sub-menus & Checkboxes**: Nested menus with interactive checkboxes
-- ✅ **Optimized Performance**: 0ms CPU when inactive, efficient resource usage
+- **Entity Targeting**: Vehicles, peds, players, objects, self, ground, sky
+- **Model Targeting**: Target specific prop models (ATMs, vending machines, custom props)
+- **Bone Targeting**: Target specific vehicle parts (doors, trunk, hood, wheels, engine)
+- **Custom Data**: Pass any extra keys to your callbacks via the `data` table
+- **Framework Support**: Built-in ESX/QBCore job, gang, group and item conditions
+- **Submenus**: Nested options with smart depth handling
+- **Checkboxes**: Toggle options with stored or dynamic state
+- **Visual Feedback**: Outlines and markers on targeted entities
 
----
+## Installation
 
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Features](#features)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Configuration](#configuration)
-  - [Controls](#controls)
-  - [Targeting](#targeting)
-  - [Outline](#outline-entity-highlight)
-  - [Marker](#marker-3d-marker-above-entity)
-  - [Menu](#menu-nui-context-menu)
-  - [MAP Objects Detection](#map-objects-detection)
-  - [Debug](#debug)
-  - [Disabled Controls](#disabled-controls-while-targeting-mode-is-active)
-- [Complete API Reference](#complete-api-reference)
-  - [State Exports](#state-exports)
-  - [Control Exports](#control-exports)
-  - [Registration Exports](#registration-exports)
-  - [Removal Exports](#removal-exports)
-- [Checkboxes System](#checkboxes-system)
-- [Sub-menus](#sub-menus)
-- [Real-time Refresh System](#real-time-refresh-system)
-- [Handler Methods](#handler-methods)
-- [Usage Examples](#usage-examples)
-  - [Basic Examples](#basic-examples)
-  - [Model Registration (ATMs and Static Objects)](#model-registration-atms-and-static-objects)
-  - [Sky/Ground Targeting](#registering-options-for-skyground)
-  - [Movement Support](#menu-stability-while-moving)
-- [Advanced Features](#advanced-features)
-  - [Real-time Option Updates](#real-time-option-updates)
-  - [Resource Auto-cleanup](#resource-auto-cleanup)
-  - [Entity Type Detection](#entity-type-detection)
-  - [Menu Stability While Moving](#menu-stability-while-moving)
-  - [Cursor Feedback](#cursor-feedback)
-  - [Limitations and What Doesn't Work](#limitations-and-what-doesnt-work)
-- [Performance Optimizations](#performance-optimizations)
-- [Best Practices](#best-practices)
-- [Troubleshooting](#troubleshooting)
-  - [ATM or MAP Object Not Detected](#atm-or-map-object-not-detected)
-  - [Menu Closes While Moving](#menu-closes-while-moving)
-- [Technical Details](#technical-details)
-  - [How MAP Props Detection Works](#how-map-props-detection-works)
-
----
-
-## Overview
-
-NBL Target is a **free and open source** comprehensive targeting system that allows players to interact with entities (vehicles, peds, objects, players, self, ground, sky) through a modern context menu interface. Hold the activation key (default: Left Alt) to enter targeting mode, then click on any entity to open a context menu with available interaction options.
-
-**Key Highlights:**
-- ✅ **MAP Props Support**: Automatically detects static world objects (ATMs, vending machines) even inside buildings
-- ✅ **Movement-Friendly**: Menu stays open while moving (in vehicles, walking with peds)
-- ✅ **Sky/Ground Targeting**: Register options for clicking in the sky or on the ground
-- ✅ **Configurable Detection**: Customize MAP object detection for your mapping
-- ✅ **Framework Integration**: Auto-detects ESX/QBCore for job/gang/items support, works standalone if no framework detected
-
-### How It Works
-
-1. **Activation**: Player holds the activation key (Left Alt by default)
-2. **Targeting**: System performs raycast to detect entities under the cursor
-3. **Visual Feedback**: Entities with available options show outline and 3D marker
-4. **Cursor Change**: Cursor icon changes when hovering over targetable entities
-5. **Selection**: Player clicks on entity to open context menu
-6. **Interaction**: Player selects an option from the menu (or checkbox, or sub-menu)
-7. **Action**: System executes the registered action (callback, export, event, etc.)
-8. **Real-time Updates**: Menu refreshes automatically to show/hide options based on conditions
-
----
-
-## ✨ Features
-
-- 🎯 **Advanced Targeting System**: Precise entity detection with configurable raycast (vehicles, peds, objects, ground, sky, self)
-- 🔄 **Full Compatibility**: Drop-in replacement for `ox_target` and `qb-target` - existing scripts work without modification
-- 🏦 **MAP Props Detection**: Automatic detection of static world objects (ATMs, vending machines) even when inside buildings
-- 🖱️ **Visual Feedback**: Outline and 3D markers on hover for clear entity indication
-- 🎨 **Dynamic Cursor**: Cursor changes based on entity state (has options or not)
-- 📦 **Flexible Registration**: Register options for specific entities, models, or global types
-- 🔄 **Array Support**: Register for multiple entities or models with a single call
-- 🎨 **Modern NUI Menu**: Beautiful dark-themed context menu with smooth animations
-- 📋 **Sub-menus**: Nested options with hover support and conditional display (up to 2 levels deep)
-- ☑️ **Checkboxes**: Interactive checkboxes with real-time state updates
-- ⚡ **Real-time Updates**: Auto-refresh options based on `canInteract` conditions and checkbox states (configurable interval)
-- 🚗 **Movement Support**: Menu stays open while moving (in vehicles, walking with peds, etc.)
-- 🔧 **Multiple Actions**: Support for exports, events, serverEvents, commands, and callbacks
-- 🛡️ **Error Handling**: Complete protection against crashes with `pcall` wrappers
-- ⚡ **Optimized Performance**: 0ms CPU when inactive, efficient resource usage, optimized loops and caching
-- 🔄 **Auto-cleanup**: Automatic removal of options when resources stop
-- 🎛️ **Handler Methods**: Dynamic control of registered options (change label, icon, enable/disable, etc.)
-- 🔗 **Method Chaining**: Chain multiple handler methods for cleaner code
-- ⚙️ **Configurable MAP Objects**: Add custom static object models in config for custom mapping support
-- 🌌 **Sky/Ground Targeting**: Register options for clicking in the sky or on the ground
-- 🔌 **Bridge System**: Automatic compatibility layer for `ox_target` and `qb-target` exports
-- 🎮 **Standalone Mode**: Works perfectly without any framework - framework features are optional enhancements
-
----
-
-## 🚀 Installation
-
-1. **Download the Resource**: Obtain the `nbl-target` resource files (free and open source)
-2. **Place in Resources Folder**: Drag and drop the `nbl-target` folder into your server's `resources` directory
-   ```
-   server-data/resources/[your-category]/nbl-target/
-   ```
-3. **Add to server.cfg**: Open your `server.cfg` file and add:
-   ```cfg
-   ensure nbl-target
-   ```
-4. **Replace Existing Targets (Optional)**: If you're replacing `ox_target` or `qb-target`, simply remove them from your `server.cfg`:
-   ```cfg
-   # Remove or comment out these lines:
-   # ensure ox_target
-   # ensure qb-target
-   
-   ensure nbl-target
-   ```
-5. **Restart Server**: Restart your FiveM server to load the resource
-
-**Note**: 
-- Ensure your server is running on `fx_version 'cerulean'` or newer
-- **No code changes needed** - existing scripts using `ox_target` or `qb-target` will work automatically!
-
----
+1. Drop `nbl-target` into your resources folder
+2. Add `ensure nbl-target` to your server.cfg
+3. Configure `config/config.lua` to your liking
 
 ## Quick Start
 
-### Basic Example
-
 ```lua
--- Register an option for all vehicles
-local target = exports['nbl-target']:addGlobalVehicle({
-    label = "Enter Vehicle",
-    icon = "fas fa-car-side",
-    name = "enter_vehicle",
-    distance = 5.0,
-    onSelect = function(entity, coords, registration)
-        TaskEnterVehicle(PlayerPedId(), entity, 10000, -1, 1.0, 1, 0)
+-- Target any vehicle
+exports['nbl-target']:addGlobalVehicle({
+    label = 'Lock/Unlock',
+    icon = 'fas fa-lock',
+    onSelect = function(data)
+        print('Entity:', data.entity)
+        print('Coords:', data.coords)
     end
 })
 ```
 
-### With Conditional Display
+## Examples
+
+### Target Vehicles
 
 ```lua
-local target = exports['nbl-target']:addGlobalVehicle({
-    label = "Lock Vehicle",
-    icon = "fas fa-lock",
-    name = "lock_vehicle",
+exports['nbl-target']:addGlobalVehicle({
+    label = 'Repair',
+    icon = 'fas fa-wrench',
     distance = 3.0,
-    canInteract = function(entity, distance, worldPos, name, bone)
-        -- Only show if player owns the vehicle
-        return exports['vehicles']:isOwner(entity) and distance <= 3.0
+    
+    canInteract = function(data)
+        -- data.entity, data.distance, data.coords, data.bone, data.name
+        return GetVehicleEngineHealth(data.entity) < 1000
     end,
-    onSelect = function(entity, coords)
-        exports['vehicles']:toggleLock(entity)
+    
+    onSelect = function(data)
+        SetVehicleFixed(data.entity)
     end
 })
 ```
 
-### With Framework Filters (Job/Items/Groups)
+### Target Peds
 
 ```lua
-exports['nbl-target']:addGlobalVehicle({
-    label = "Police Vehicle",
-    job = 'police',
-    onSelect = function(entity) end
-})
-
 exports['nbl-target']:addGlobalPed({
-    label = "Requires Lockpick",
-    items = 'lockpick',
-    onSelect = function(entity) end
-})
-
-exports['nbl-target']:addGlobalSelf({
-    {
-        label = 'Admin Menu',
-        groups = 'admin',
-        items = {
-            { label = 'Option 1', onSelect = function() end }
-        }
-    }
-})
-```
-
-### With Checkbox
-
-```lua
-local debugEnabled = false
-
-exports['nbl-target']:addGlobalSelf({
-    {
-        label = 'Settings',
-        icon = 'fas fa-cog',
-        items = {
-            {
-                name = 'debug_mode',
-                label = 'Debug Mode',
-                icon = 'fas fa-bug',
-                checkbox = true,
-                checked = function()
-                    return debugEnabled
-                end,
-                onCheck = function(newState)
-                    debugEnabled = newState
-                    print("Debug mode: " .. tostring(debugEnabled))
-                end
-            }
-        }
-    }
-})
-```
-
----
-
-## ⚙️ Configuration
-
-All configuration is in `config/config.lua`. Here are the main sections:
-
-### Controls
-
-```lua
-Config.Controls = {
-    activationKey = 'LMENU',  -- Key to activate (Left Alt)
-    selectKey = 24            -- Mouse button to select (24 = Left Click)
-}
-```
-
-**Common Activation Keys:**
-- `'LMENU'` - Left Alt (default)
-- `'LCONTROL'` - Left Ctrl
-- `'LSHIFT'` - Left Shift
-- `'LALT'` - Left Alt (alternative)
-
-**Select Keys:**
-- `24` - Left Click (default)
-- `25` - Right Click
-
-### Targeting
-
-```lua
-Config.Target = {
-    maxDistance = 100.0,           -- Maximum raycast distance (meters)
-    raycastFlags = 287,             -- Raycast flags (what entities can be detected)
-    allowSelfTarget = true,         -- Allow targeting yourself
-    defaultDistance = 3.0           -- Default interaction distance (meters)
-}
-```
-
-**Raycast Flags:**
-- `-1` - All entity types
-- `1` - World/terrain
-- `2` - Vehicles
-- `4` - Peds
-- `8` - Objects
-- `16` - Water
-- `32` - Foliage
-- `287` - World + Vehicles + Peds + Objects + Water + IntersectEntities (recommended)
-
-**Important Notes:**
-- `maxDistance` controls how far away you can **hover** over entities (raycast detection)
-- Individual option `distance` controls the **interaction** distance (when you can actually click)
-- You can hover from far away (100m) but only interact when close (3m default)
-
-### Outline (Entity Highlight)
-
-```lua
-Config.Outline = {
-    enabled = true,
-    color = {r = 88, g = 101, b = 242, a = 255},  -- Nebula Blue (RGBA)
-    allowedTypes = {
-        vehicle = true,
-        object = true,
-        ped = false,      -- WARNING: Crashes on peds!
-        player = false,   -- WARNING: Crashes on players!
-        self = false      -- WARNING: Crashes on self!
-    }
-}
-```
-
-**⚠️ CRITICAL WARNING**: `SetEntityDrawOutline` **CRASHES** on peds, players, and self! Always keep these set to `false` in `allowedTypes`.
-
-### Marker (3D Marker Above Entity)
-
-```lua
-Config.Marker = {
-    enabled = true,
-    type = 2,                    -- Marker type (2 = Arrow down)
-    color = {r = 88, g = 101, b = 242, a = 200},  -- Nebula Blue (RGBA)
-    scale = 0.3,                 -- Marker scale
-    height = 0.3,                -- Height offset above entity top (meters)
-    rotate = true,               -- Rotate animation
-    bob = true,                  -- Bobbing animation
-    allowedTypes = {
-        vehicle = true,
-        object = true,
-        ped = true,
-        player = true,
-        self = true
-    }
-}
-```
-
-**Common Marker Types:**
-- `1` - Cylinder
-- `2` - Arrow down (default)
-- `25` - Horizontal circle
-- `27` - Arrow
-
-**Marker Height**: The marker automatically calculates entity height using `GetModelDimensions` and positions itself above the entity's top. The `height` parameter is just an additional offset.
-
-### Menu (NUI Context Menu)
-
-```lua
-Config.Menu = {
-    scale = 1.0,                 -- Menu scale (1.0 = 100%)
-    maxVisibleOptions = 8,       -- Max options before scroll
-    subMenuDelay = 150,          -- Delay before showing submenu (ms)
-    animationDuration = 150,     -- Animation duration (ms)
-    closeOnKeyRelease = true,    -- Close menu when releasing activation key
-    refreshInterval = 100        -- Auto-refresh interval (ms, 0 = disabled)
-}
-```
-
-**Refresh Interval:**
-- `0` - Disable auto-refresh (not recommended)
-- `100` - Refresh every 100ms (very fast, excellent for checkboxes, default)
-- `250` - Refresh every 250ms (fast, good for most use cases)
-- `500` - Refresh every 500ms (balanced, better performance)
-- `1000` - Refresh every 1000ms (slower, best performance)
-
-**How Refresh Works:**
-- When menu is open, system calls all `canInteract` functions every `refreshInterval` ms
-- For checkboxes, system calls `checked()` function every `refreshInterval` ms
-- Only sends updates to NUI if something actually changed (smart hash comparison)
-- Works in main menu AND sub-menus (checkboxes update in real-time)
-
-### MAP Objects Detection
-
-Some objects in the game (like ATMs, vending machines) are **static MAP props** - they're part of the world geometry and don't register as normal entities. NBL Target automatically detects these objects when you aim at them.
-
-```lua
-Config.MapObjectModels = {
-    'prop_atm_01',
-    'prop_atm_02', 
-    'prop_atm_03',
-    'prop_fleeca_atm',
-    -- Add your custom mapping models here
-}
-
-Config.MapObjectSearchRadius = 2.5    -- Search radius (meters)
-Config.MapObjectMaxDistance = 2.5     -- Max distance from hit point (meters)
-```
-
-**How It Works:**
-1. When raycast hits a MAP prop (wall, floor, etc.), the entity is invalid (`GetEntityType == 0`)
-2. System searches for registered models near the hit point
-3. If an object is found within `MapObjectMaxDistance`, it's selected
-4. This allows targeting ATMs even when they're inside buildings
-
-**Adding Custom Models:**
-If you have custom mapping with new objects, add their model names to `Config.MapObjectModels`:
-
-```lua
-Config.MapObjectModels = {
-    'prop_atm_01',
-    'prop_atm_02',
-    'prop_atm_03',
-    'prop_fleeca_atm',
-    'your_custom_atm_model',      -- Add custom models here
-    'your_custom_vending_model',
-}
-```
-
-**Tuning Detection:**
-- **`MapObjectSearchRadius`**: How far to search for objects (default: 2.5m)
-  - Higher = finds objects further away
-  - Lower = more precise, only finds very close objects
-- **`MapObjectMaxDistance`**: Maximum distance from hit point to accept object (default: 2.5m)
-  - Higher = easier to target (good for tall objects like ATMs)
-  - Lower = more precise targeting required
-
-**Note:** Objects registered via `addModel()` are automatically included in the search, so you don't need to add them to `Config.MapObjectModels`.
-
----
-
-## 🔌 Compatibility with ox_target and qb-target
-
-NBL Target includes a **built-in compatibility layer** (bridge system) that automatically intercepts exports from `ox_target` and `qb-target`, converting them to work with NBL Target. This means you can use NBL Target as a **drop-in replacement** without modifying any existing scripts!
-
-### How It Works
-
-The bridge system automatically:
-1. Intercepts exports from `ox_target` and `qb-target` via FiveM's export handler system
-2. Converts option formats from the original target system to NBL Target's format
-3. Calls the corresponding NBL Target exports
-4. Returns compatible handler objects
-
-### Supported Exports
-
-#### ox_target Compatibility
-
-✅ **Fully Supported:**
-- `addGlobalVehicle(options)` - Register options for all vehicles
-- `addGlobalPed(options)` - Register options for all NPCs
-- `addGlobalPlayer(options)` - Register options for all players
-- `addGlobalObject(options)` - Register options for all objects
-- `addModel(models, options)` - Register options for specific models
-- `addEntity(netIds, options)` - Register options for networked entities
-- `addLocalEntity(entities, options)` - Register options for local entities
-- `removeGlobalVehicle(ids)` - Remove vehicle options
-- `removeGlobalPed(ids)` - Remove ped options
-- `removeGlobalPlayer(ids)` - Remove player options
-- `removeGlobalObject(ids)` - Remove object options
-- `removeModel(models, ids)` - Remove model options
-- `removeEntity(netIds, ids)` - Remove entity options
-- `removeLocalEntity(entities, ids)` - Remove local entity options
-- `disableTargeting(state)` - Enable/disable targeting
-- `isActive()` - Check if targeting is active
-
-❌ **Not Supported (Zones):**
-- `addSphereZone(data)` - Returns `nil`, shows console warning (zones not supported)
-- `addBoxZone(data)` - Returns `nil`, shows console warning (zones not supported)
-- `addPolyZone(data)` - Returns `nil`, shows console warning (zones not supported)
-- `removeZone(id)` - Returns `nil`, shows console warning (zones not supported)
-
-**Note:** Zone functions will print a one-time warning to the console indicating that zone targeting is not supported. Use entity-based targeting instead.
-
-#### qb-target / qtarget Compatibility
-
-✅ **Fully Supported:**
-- `AddGlobalVehicle(options)` - Register options for all vehicles
-- `RemoveGlobalVehicle(labels)` - Remove vehicle options by label
-- `AddGlobalPed(options)` - Register options for all NPCs
-- `RemoveGlobalPed(labels)` - Remove ped options by label
-- `AddGlobalPlayer(options)` - Register options for all players
-- `RemoveGlobalPlayer(labels)` - Remove player options by label
-- `AddGlobalObject(options)` - Register options for all objects
-- `RemoveGlobalObject(labels)` - Remove object options by label
-- `AddTargetModel(models, options)` - Register options for specific models
-- `RemoveTargetModel(models, labels)` - Remove model options by label
-- `AddTargetEntity(entities, options)` - Register options for entities
-- `RemoveTargetEntity(entities, labels)` - Remove entity options by label
-- `AddTargetBone(bones, options)` - Register options for vehicle bones
-- `RemoveTargetBone(bones, labels)` - Remove bone options by label
-- `Ped(options)` - Alias for `AddGlobalPed`
-- `RemovePed(labels)` - Alias for `RemoveGlobalPed`
-- `Vehicle(options)` - Alias for `AddGlobalVehicle`
-- `RemoveVehicle(labels)` - Alias for `RemoveGlobalVehicle`
-- `Object(options)` - Alias for `AddGlobalObject`
-- `RemoveObject(labels)` - Alias for `RemoveGlobalObject`
-- `Player(options)` - Alias for `AddGlobalPlayer`
-- `RemovePlayer(labels)` - Alias for `RemoveGlobalPlayer`
-- `IsTargetActive()` - Check if targeting is active
-- `IsTargetSuccess()` - Check if menu is open
-- `GetTargetEntity()` - Get currently selected entity
-
-❌ **Not Supported:**
-- `AddTargetBone(bones, options)` - Shows console warning (bone targeting not supported, use entity targeting instead)
-- `AddBoxZone(...)` - Returns `nil`, shows console warning (zones not supported)
-- `AddPolyZone(...)` - Returns `nil`, shows console warning (zones not supported)
-- `AddCircleZone(...)` - Returns `nil`, shows console warning (zones not supported)
-- `RemoveZone(name)` - Returns `nil`, shows console warning (zones not supported)
-- `SpawnPed(...)` - Shows console warning (ped spawning not supported)
-- `DeletePed(...)` - Shows console warning (ped deletion not supported)
-
-**Note:** Unsupported functions will print a one-time warning to the console indicating the feature is not available. Use entity-based targeting instead.
-
-### Option Format Conversion
-
-The bridge automatically converts option formats:
-
-**ox_target → NBL Target:**
-- `label` / `name` → `label` and `name`
-- `icon` → `icon`
-- `distance` → `distance`
-- `canInteract` → `canInteract`
-- `onSelect` → `onSelect`
-- `event` → `event`
-- `serverEvent` → `serverEvent`
-- `command` → `command`
-- `shouldClose` → `shouldClose`
-- `groups` → Integrated into `canInteract` function
-
-**qb-target → NBL Target:**
-- `options.options` or `options` → Array of options
-- `label` / `name` → `label` and `name`
-- `icon` → `icon`
-- `distance` → `distance`
-- `action` → `onSelect`
-- `event` + `type` → `event`, `serverEvent`, or `command`
-- `job` → Integrated into `canInteract` function (auto-detects ESX/QBCore)
-- `gang` → Integrated into `canInteract` function (QBCore only)
-- `groups` → Integrated into `canInteract` function (ESX/QBCore)
-- `item` / `required_item` → Integrated into `canInteract` function (auto-detects ESX/QBCore)
-
-### Migration Example
-
-**Before (ox_target):**
-```lua
-exports.ox_target:addGlobalVehicle({
-    {
-        label = "Enter Vehicle",
-        icon = "fas fa-car-side",
-        onSelect = function(entity)
-            TaskEnterVehicle(PlayerPedId(), entity, 10000, -1, 1.0, 1, 0)
-        end
-    }
-})
-```
-
-**After (No changes needed!):**
-```lua
--- Same code works with nbl-target!
-exports.ox_target:addGlobalVehicle({
-    {
-        label = "Enter Vehicle",
-        icon = "fas fa-car-side",
-        onSelect = function(entity)
-            TaskEnterVehicle(PlayerPedId(), entity, 10000, -1, 1.0, 1, 0)
-        end
-    }
-})
-```
-
-**Or use NBL Target's native exports:**
-```lua
-exports['nbl-target']:addGlobalVehicle({
-    {
-        label = "Enter Vehicle",
-        icon = "fas fa-car-side",
-        onSelect = function(entity)
-            TaskEnterVehicle(PlayerPedId(), entity, 10000, -1, 1.0, 1, 0)
-        end
-    }
-})
-```
-
-### Framework Support (ESX/QBCore)
-
-NBL Target automatically detects and integrates with ESX or QBCore frameworks when present. This enables automatic handling of job, gang, groups, and item filters in **both the native API and bridge compatibility mode**.
-
-**Auto-Detection:**
-- Automatically detects ESX or QBCore on resource start
-- No configuration needed - works out of the box
-- Falls back gracefully if no framework is detected
-
-**Supported Filters (Native API & Bridge):**
-- **Job**: Automatically checked using framework's job system
-- **Gang**: Automatically checked using QBCore's gang system (QBCore only)
-- **Groups**: Automatically checked using framework's group system
-- **Items**: Automatically checked using framework's inventory system
-
-**How It Works:**
-When options include `job`, `gang`, `groups`, or `items` filters, the system:
-1. Automatically wraps the `canInteract` function with framework checks
-2. Uses event-driven caching (no polling) for optimal performance
-3. Updates player data on job/gang changes via framework events
-4. Shows warnings for unsupported filters if framework is not available
-5. Works seamlessly in both native API and bridge compatibility layer
-
-**Example (Native API with Framework Filters):**
-```lua
-exports['nbl-target']:addGlobalVehicle({
-    label = 'Police Vehicle',
-    job = 'police',
-    onSelect = function(entity) end
-})
-
-exports['nbl-target']:addGlobalPed({
-    label = 'Requires Lockpick',
-    items = 'lockpick',
-    onSelect = function(entity) end
-})
-```
-
-**Example (Bridge Compatibility - Automatic Conversion):**
-```lua
-exports['qb-target']:AddGlobalVehicle({
-    {
-        label = 'Police Vehicle',
-        job = 'police',
-        action = function(entity) end
-    }
-})
-```
-
-### Important Notes
-
-1. **Zones Not Supported**: Zone-based targeting (`AddBoxZone`, `AddPolyZone`, etc.) is not supported. If your scripts use zones, you'll need to migrate to entity-based targeting. The bridge will show a console warning when zone functions are called.
-
-2. **Bone Targeting Not Supported**: `AddTargetBone` is not supported. Use entity-based targeting instead. The bridge will show a console warning when bone functions are called.
-
-3. **Automatic Conversion**: The bridge handles all option format conversions automatically - you don't need to modify your existing code.
-
-4. **Handler Objects**: Returned handler objects are compatible with the original target system's API.
-
-5. **Performance**: The bridge adds minimal overhead - option conversion happens once during registration.
-
-6. **Error Handling**: All conversions are wrapped in `pcall` for safety.
-
-7. **Framework Warnings**: If a script uses job/gang/items filters but no framework is detected, a warning will be printed to help developers migrate to `canInteract` functions.
-
----
-
-## Complete API Reference
-
-### State Exports
-
-#### `isActive()`
-
-Check if targeting mode is currently active.
-
-```lua
-local active = exports['nbl-target']:isActive()
--- Returns: boolean
-```
-
-#### `isMenuOpen()`
-
-Check if the context menu is currently open.
-
-```lua
-local isOpen = exports['nbl-target']:isMenuOpen()
--- Returns: boolean
-```
-
-#### `isEnabled()`
-
-Check if the registry system is enabled.
-
-```lua
-local enabled = exports['nbl-target']:isEnabled()
--- Returns: boolean
-```
-
-#### `getCurrentTarget()`
-
-Get information about the currently hovered or selected entity.
-
-```lua
-local target = exports['nbl-target']:getCurrentTarget()
--- Returns: table or nil
--- {
---     entity = number,        -- Entity handle
---     entityType = string,    -- "vehicle", "ped", "player", "object", "self"
---     worldPos = vector3      -- World position
--- }
-```
-
-#### `getSelectedEntity()`
-
-Get the entity handle of the currently selected entity (when menu is open).
-
-```lua
-local entity = exports['nbl-target']:getSelectedEntity()
--- Returns: number or nil
-```
-
-### Control Exports
-
-#### `enable()`
-
-Enable the registry system.
-
-```lua
-exports['nbl-target']:enable()
-```
-
-#### `disable()`
-
-Disable the registry system.
-
-```lua
-exports['nbl-target']:disable()
-```
-
-#### `deactivate()`
-
-Deactivate the targeting mode (equivalent to releasing the activation key).
-
-```lua
-exports['nbl-target']:deactivate()
-```
-
-#### `closeMenu()`
-
-Manually close the context menu (does NOT deactivate targeting mode).
-
-```lua
-exports['nbl-target']:closeMenu()
-```
-
-### Registration Exports
-
-All registration exports return a **handler object** with methods to dynamically control the option.
-
-#### `addEntity(entities, options)`
-
-Register an option for a specific entity or array of entities.
-
-```lua
-local target = exports['nbl-target']:addEntity(entity, options)
--- OR
-local target = exports['nbl-target']:addEntity({entity1, entity2, entity3}, options)
-```
-
-#### `addLocalEntity(entities, options)`
-
-Register an option for a local entity (client-side only, not synced).
-
-```lua
-local target = exports['nbl-target']:addLocalEntity(entity, options)
-```
-
-#### `addModel(models, options)`
-
-Register an option for one or multiple models.
-
-```lua
--- Single model (string or hash)
-local target = exports['nbl-target']:addModel('prop_atm_01', options)
-local target = exports['nbl-target']:addModel(joaat('prop_atm_01'), options)
-
--- Multiple models (array)
-local target = exports['nbl-target']:addModel({
-    'prop_atm_01',
-    'prop_atm_02',
-    'prop_atm_03'
-}, options)
-```
-
-#### `addGlobalVehicle(options)`
-
-Register an option for all vehicles.
-
-```lua
-local target = exports['nbl-target']:addGlobalVehicle(options)
-```
-
-#### `addGlobalPed(options)`
-
-Register an option for all NPCs (peds).
-
-```lua
-local target = exports['nbl-target']:addGlobalPed(options)
-```
-
-#### `addGlobalPlayer(options)`
-
-Register an option for all players.
-
-```lua
-local target = exports['nbl-target']:addGlobalPlayer(options)
-```
-
-#### `addGlobalSelf(options)`
-
-Register an option for yourself (the player).
-
-```lua
-local target = exports['nbl-target']:addGlobalSelf(options)
-```
-
-#### `addGlobalObject(options)`
-
-Register an option for all objects.
-
-```lua
-local target = exports['nbl-target']:addGlobalObject(options)
-```
-
-#### `addGlobalSky(options)`
-
-Register an option for when clicking in the sky (no entity hit).
-
-```lua
-local target = exports['nbl-target']:addGlobalSky({
-    label = "Weather Menu",
-    icon = "fas fa-cloud-sun",
-    name = "weather_menu",
-    onSelect = function()
-        TriggerEvent('weather:openMenu')
-    end
-})
-```
-
-#### `addGlobalGround(options)`
-
-Register an option for when clicking on the ground.
-
-```lua
-local target = exports['nbl-target']:addGlobalGround({
-    label = "Place Object",
-    icon = "fas fa-cube",
-    name = "place_object",
-    onSelect = function(entity, coords)
-        SpawnObject(coords)
-    end
-})
-```
-
-#### `addGlobalOption(entityType, options)`
-
-Register an option for a custom entity type.
-
-```lua
-local target = exports['nbl-target']:addGlobalOption('vehicle', options)
-```
-
-**Array Support for Global Types:**
-
-You can register multiple options at once by passing an array:
-
-```lua
-exports['nbl-target']:addGlobalVehicle({
-    {
-        name = 'enter',
-        label = 'Enter Vehicle',
-        icon = 'fas fa-car-side',
-        onSelect = function(entity) end
-    },
-    {
-        name = 'lock',
-        label = 'Lock/Unlock',
-        icon = 'fas fa-lock',
-        onSelect = function(entity) end
-    },
-    {
-        name = 'trunk',
-        label = 'Open Trunk',
-        icon = 'fas fa-box',
-        onSelect = function(entity) end
-    }
-})
-```
-
-### Removal Exports
-
-#### `remove(handlerOrId)`
-
-Generic remove function that works with handler objects or registration IDs.
-
-```lua
-exports['nbl-target']:remove(handler)
--- OR
-exports['nbl-target']:remove(123)
-```
-
-#### `removeByName(name)`
-
-Remove an option by its name identifier.
-
-```lua
-exports['nbl-target']:removeByName("enter_vehicle")
-```
-
-#### `removeByResource(resourceName)`
-
-Remove all options registered by a specific resource.
-
-```lua
-local count = exports['nbl-target']:removeByResource('myresource')
-```
-
----
-
-## Checkboxes System
-
-NBL Target supports interactive checkboxes that can be toggled and update in real-time.
-
-### Basic Checkbox
-
-```lua
-local mySetting = false
-
-exports['nbl-target']:addGlobalSelf({
-    {
-        label = 'Settings',
-        icon = 'fas fa-cog',
-        items = {
-            {
-                name = 'my_setting',
-                label = 'Enable Feature',
-                icon = 'fas fa-toggle-on',
-                checkbox = true,
-                checked = function()
-                    return mySetting
-                end,
-                onCheck = function(newState)
-                    mySetting = newState
-                    print("Feature enabled: " .. tostring(newState))
-                end
-            }
-        }
-    }
-})
-```
-
-### Checkbox Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `checkbox` | `boolean` | Yes | Set to `true` to enable checkbox mode |
-| `checked` | `function` or `boolean` | Yes | Function that returns current state, or boolean for static state |
-| `onCheck` | `function` | No | Callback when checkbox is toggled |
-
-### Checkbox Behavior
-
-1. **Static State (Boolean)**:
-   ```lua
-   checkbox = true,
-   checked = false,  -- Initial state
-   onCheck = function(newState)
-       -- Update your variable
-   end
-   ```
-
-2. **Dynamic State (Function)** - **RECOMMENDED**:
-   ```lua
-   checkbox = true,
-   checked = function()
-       return myVariable  -- Called every refreshInterval ms
-   end,
-   onCheck = function(newState)
-       myVariable = newState  -- Called when user clicks
-   end
-   ```
-
-### Real-time Updates
-
-When using a function for `checked`, the system automatically:
-- Calls the function every `refreshInterval` milliseconds (default: 100ms)
-- Updates the checkbox visual state if the value changed
-- Works even when you're in a sub-menu
-- Updates instantly when external code changes your variable
-
-**Example with External Update:**
-
-```lua
-local debugEnabled = false
-
--- Register checkbox
-exports['nbl-target']:addGlobalSelf({
-    {
-        label = 'Settings',
-        items = {
-            {
-                name = 'debug',
-                label = 'Debug Mode',
-                checkbox = true,
-                checked = function()
-                    return debugEnabled  -- Reads from variable
-                end,
-                onCheck = function(newState)
-                    debugEnabled = newState  -- Updates variable
-                end
-            }
-        }
-    }
-})
-
--- External command to toggle
-RegisterCommand('toggleDebug', function()
-    debugEnabled = not debugEnabled
-    -- Checkbox will update automatically within 100ms!
-end, false)
-```
-
-### Checkbox Restrictions
-
-- ❌ **Checkbox + Sub-menu**: An option cannot have both `checkbox = true` AND `items`. If both are set, `items` will be ignored.
-- ✅ **Checkbox in Sub-menu**: Checkboxes work perfectly inside sub-menus
-- ✅ **Nested Sub-menus**: Checkboxes can be in nested sub-menus
-
-### Handler Methods for Checkboxes
-
-```lua
-local handler = exports['nbl-target']:addGlobalSelf({...})
-
--- Force checkbox state (only works if using boolean, not function)
-handler:setChecked(true)
-
--- Change the onCheck callback
-handler:setOnCheck(function(newState)
-    -- New callback
-end)
-```
-
-**Note**: `setChecked()` only works if you're using a boolean for `checked`. If you're using a function, just update your variable and the checkbox will update automatically.
-
----
-
-## Sub-menus
-
-Sub-menus allow you to create nested options that appear when hovering over a parent option.
-
-### Basic Sub-menu
-
-```lua
-exports['nbl-target']:addGlobalVehicle({
-    {
-        label = 'Vehicle Menu',
-        icon = 'fas fa-cog',
-        items = {
-            {
-                name = 'lock',
-                label = 'Lock/Unlock',
-                icon = 'fas fa-lock',
-                onSelect = function(entity) end
-            },
-            {
-                name = 'engine',
-                label = 'Engine',
-                icon = 'fas fa-car',
-                items = {  -- Nested sub-menu
-                    {
-                        name = 'start',
-                        label = 'Start',
-                        icon = 'fas fa-play',
-                        onSelect = function(entity) end
-                    },
-                    {
-                        name = 'stop',
-                        label = 'Stop',
-                        icon = 'fas fa-stop',
-                        onSelect = function(entity) end
-                    }
-                }
-            }
-        }
-    }
-})
-```
-
-### Sub-menu Parameters
-
-Sub-menu items support all the same parameters as main options:
-- `name`, `label`, `icon`
-- `distance`, `canInteract`
-- `onSelect`, `export`, `event`, `serverEvent`, `command`
-- `shouldClose`, `enabled`
-- `checkbox`, `checked`, `onCheck` (checkboxes work in sub-menus!)
-- `items` (nested sub-menus, max 2 levels deep)
-
-### Sub-menu Depth Limit
-
-**Maximum depth: 2 levels of sub-menus**
-
-```
-Main Menu (Level 0)
-  └─ Option with items (opens Sub-menu Level 1)
-      └─ Option with items (opens Sub-menu Level 2)
-          └─ Options here CANNOT have items (max depth reached)
-```
-
-This limit ensures good UX and prevents overly complex menu structures.
-
-### Sub-menu Behavior
-
-- **Hover to Open**: Sub-menu opens after `subMenuDelay` milliseconds (default: 150ms)
-- **Auto-close**: Sub-menu closes when mouse leaves (with small delay)
-- **Refresh**: Sub-menu items are refreshed in real-time (checkboxes update automatically)
-- **Distance Check**: Sub-menu items respect their own `distance` parameter
-- **canInteract**: Sub-menu items support `canInteract` for conditional display
-
-### Sub-menu with Checkboxes
-
-```lua
-local setting1 = false
-local setting2 = true
-
-exports['nbl-target']:addGlobalSelf({
-    {
-        label = 'Settings',
-        icon = 'fas fa-cog',
-        items = {
-            {
-                name = 'setting1',
-                label = 'Setting 1',
-                checkbox = true,
-                checked = function() return setting1 end,
-                onCheck = function(newState) setting1 = newState end
-            },
-            {
-                name = 'setting2',
-                label = 'Setting 2',
-                checkbox = true,
-                checked = function() return setting2 end,
-                onCheck = function(newState) setting2 = newState end
-            }
-        }
-    }
-})
-```
-
----
-
-## Real-time Refresh System
-
-NBL Target includes a powerful real-time refresh system that updates options and checkboxes automatically.
-
-### How It Works
-
-1. **When Menu is Open**: System refreshes every `refreshInterval` milliseconds (default: 100ms)
-2. **Checks Conditions**: Calls all `canInteract` functions to see if options should show/hide
-3. **Checks Checkboxes**: Calls all `checked()` functions to update checkbox states
-4. **Smart Updates**: Only sends updates to NUI if something actually changed (hash comparison)
-5. **Works Everywhere**: Refresh works in main menu AND sub-menus
-
-### Configuration
-
-```lua
-Config.Menu = {
-    refreshInterval = 100  -- Milliseconds between refreshes (default: 100ms)
-}
-```
-
-**Recommended Values:**
-- `100` - Very fast updates, excellent for checkboxes (default)
-- `250` - Fast updates, good for most use cases
-- `500` - Balanced, better performance
-- `1000` - Slower, best performance
-- `0` - Disabled (not recommended)
-
-### What Gets Refreshed
-
-1. **Option Visibility**: Options appear/disappear based on `canInteract` results
-2. **Checkbox States**: Checkboxes update based on `checked()` function results
-3. **Labels/Icons**: If you change them via handler methods, they update on next refresh
-
-### Example: Dynamic Option Visibility
-
-```lua
-local hasKey = false
-
-exports['nbl-target']:addGlobalVehicle({
-    {
-        label = 'Enter Vehicle',
-        canInteract = function(entity, distance)
-            -- This is called every 100ms when menu is open (default)
-            return hasKey and distance <= 3.0
-        end,
-        onSelect = function(entity) end
-    }
-})
-
--- Later, player gets key
-RegisterNetEvent('keys:received', function()
-    hasKey = true
-    -- Option will appear automatically within 100ms!
-end)
-```
-
-### Example: Real-time Checkbox Updates
-
-```lua
-local godmode = false
-
-exports['nbl-target']:addGlobalSelf({
-    {
-        label = 'Admin',
-        items = {
-            {
-                name = 'godmode',
-                label = 'God Mode',
-                checkbox = true,
-                checked = function()
-                    return godmode  -- Called every 100ms (default)
-                end,
-                onCheck = function(newState)
-                    godmode = newState
-                    SetEntityInvincible(PlayerPedId(), newState)
-                end
-            }
-        }
-    }
-})
-
--- External toggle
-RegisterCommand('god', function()
-    godmode = not godmode
-    SetEntityInvincible(PlayerPedId(), godmode)
-    -- Checkbox updates automatically within 100ms!
-end, false)
-```
-
-### Performance Considerations
-
-- **Refresh Interval**: Lower values = more responsive but higher CPU usage
-- **canInteract Functions**: Keep them fast! They're called frequently
-- **checked Functions**: Keep them fast! They're called frequently
-- **Smart Hash**: System only updates NUI if something changed, reducing overhead
-
----
-
-## Handler Methods
-
-All registration exports return a **handler object** with methods to dynamically control the option.
-
-### Available Methods
-
-#### `:setLabel(label)`
-
-Change the option label dynamically.
-
-```lua
-target:setLabel("New Label")
-```
-
-#### `:setIcon(icon)`
-
-Change the option icon.
-
-```lua
-target:setIcon("fas fa-star")
-```
-
-#### `:setEnabled(enabled)`
-
-Enable or disable the option.
-
-```lua
-target:setEnabled(false)  -- Disable
-target:setEnabled(true)   -- Enable
-```
-
-#### `:setDistance(distance)`
-
-Change the interaction distance.
-
-```lua
-target:setDistance(5.0)
-```
-
-#### `:setCanInteract(fn)`
-
-Change the canInteract function.
-
-```lua
-target:setCanInteract(function(entity, distance)
-    return distance <= 2.0
-end)
-```
-
-#### `:setOnSelect(fn)`
-
-Change the onSelect callback.
-
-```lua
-target:setOnSelect(function(entity, coords)
-    print("New callback!")
-end)
-```
-
-#### `:setOnCheck(fn)` (Checkboxes only)
-
-Change the onCheck callback.
-
-```lua
-target:setOnCheck(function(newState)
-    print("New checkbox callback!")
-end)
-```
-
-#### `:setChecked(checked)` (Checkboxes only)
-
-Force checkbox state (only works with boolean `checked`, not functions).
-
-```lua
-target:setChecked(true)
-```
-
-#### `:remove()`
-
-Remove the registration(s).
-
-```lua
-target:remove()
-```
-
-#### `:getId()`
-
-Get the registration ID(s).
-
-```lua
-local id = target:getId()
-```
-
-### Method Chaining
-
-All setter methods return the handler object, allowing method chaining:
-
-```lua
-target:setLabel("New Label")
-    :setIcon("fas fa-star")
-    :setDistance(5.0)
-    :setEnabled(true)
-```
-
----
-
-## Option Parameters
-
-When registering an option, you provide a configuration table with the following parameters:
-
-| Parameter | Type | Required | Description | Default |
-|-----------|------|----------|-------------|---------|
-| `label` | `string` | Yes | Display text shown in the menu | - |
-| `name` | `string` | No | Unique identifier for the option | - |
-| `icon` | `string` | No | Font Awesome icon class | `"fas fa-hand-pointer"` |
-| `distance` | `number` | No | Maximum interaction distance in meters | `3.0` |
-| `canInteract` | `function` | No | Function that returns `true`/`false` to show/hide | Always `true` |
-| `onSelect` | `function` | No | Callback when option is selected | - |
-| `onCheck` | `function` | No | Callback when checkbox is toggled (checkboxes only) | - |
-| `checkbox` | `boolean` | No | Enable checkbox mode | `false` |
-| `checked` | `function` or `boolean` | No | Checkbox state (function or boolean) | - |
-| `job` | `string` or `table` | No | Job filter (ESX/QBCore) - auto-checked via framework | - |
-| `gang` | `string` or `table` | No | Gang filter (QBCore only) - auto-checked via framework | - |
-| `groups` | `string` or `table` | No | Groups filter (ESX/QBCore) - auto-checked via framework | - |
-| `item` | `string` or `table` | No | Item requirement filter (ESX/QBCore) - auto-checked via framework | - |
-| `export` | `string` | No | Export to call (format: `"resource.export"`) | - |
-| `event` | `string` | No | Client event name to trigger | - |
-| `serverEvent` | `string` | No | Server event name to trigger | - |
-| `command` | `string` | No | Command to execute | - |
-| `items` | `table` | No | Sub-menu items table | - |
-| `shouldClose` | `boolean` | No | Close menu and deactivate targeting | `false` |
-| `enabled` | `boolean` | No | Enable/disable the option | `true` |
-
-### Action Priority
-
-If multiple action types are specified, they are executed in this order:
-1. `export` - Calls an export from another resource
-2. `event` - Triggers a client event
-3. `serverEvent` - Triggers a server event
-4. `command` - Executes a command
-5. `onSelect` - Calls the callback function
-
-Only the first matching action type is executed.
-
-### Callback Parameters
-
-#### `canInteract` Callback
-
-Called to determine if the option should be shown.
-
-**Parameters:**
-- `entity` (number) - Entity handle
-- `distance` (number) - Distance from player to entity
-- `worldPos` (vector3) - World position of the entity
-- `name` (string) - Option name identifier
-- `bone` (number or nil) - Bone index if applicable
-
-**Returns:** `boolean` - `true` to show, `false` to hide
-
-**Called:** Every `refreshInterval` ms when menu is open (default: 100ms), and when hovering
-
-#### `onSelect` Callback
-
-Called when the option is selected.
-
-**Parameters:**
-- `entity` (number) - Entity handle
-- `coords` (vector3) - World position of the entity
-- `registration` (table) - The registration table (contains all option data)
-
-**Returns:** None
-
-**Called:** When the option is clicked
-
-#### `onCheck` Callback (Checkboxes)
-
-Called when a checkbox is toggled.
-
-**Parameters:**
-- `newState` (boolean) - The new checkbox state (`true` or `false`)
-- `entity` (number) - Entity handle (or `nil` for self)
-- `worldPos` (vector3) - World position (or `nil` for self)
-- `registration` (table) - The registration table
-
-**Returns:** None
-
-**Called:** When the checkbox is clicked
-
-#### `checked` Function (Checkboxes)
-
-Called to get the current checkbox state.
-
-**Parameters:** None (or `entity, worldPos` if you want them)
-
-**Returns:** `boolean` - `true` for checked, `false` for unchecked
-
-**Called:** Every `refreshInterval` ms when menu is open (default: 100ms, for real-time updates)
-
----
-
-## Usage Examples
-
-### Basic Vehicle Interaction
-
-```lua
-exports['nbl-target']:addGlobalVehicle({
-    label = "Enter Vehicle",
-    icon = "fas fa-car-side",
-    name = "enter_vehicle",
-    distance = 5.0,
-    onSelect = function(entity, coords)
-        TaskEnterVehicle(PlayerPedId(), entity, 10000, -1, 1.0, 1, 0)
-    end
-})
-```
-
-### Vehicle with Multiple Options
-
-```lua
-exports['nbl-target']:addGlobalVehicle({
-    {
-        name = 'enter',
-        label = 'Enter Vehicle',
-        icon = 'fas fa-car-side',
-        onSelect = function(entity) end
-    },
-    {
-        name = 'lock',
-        label = 'Lock/Unlock',
-        icon = 'fas fa-lock',
-        canInteract = function(entity, distance)
-            return exports['keys']:hasKeys(entity)
-        end,
-        onSelect = function(entity) end
-    },
-    {
-        name = 'trunk',
-        label = 'Open Trunk',
-        icon = 'fas fa-box',
-        onSelect = function(entity) end
-    }
-})
-```
-
-### Sub-menu with Checkboxes
-
-```lua
-local debugEnabled = false
-local notificationsEnabled = true
-
-exports['nbl-target']:addGlobalSelf({
-    {
-        label = 'Settings',
-        icon = 'fas fa-cog',
-        items = {
-            {
-                name = 'debug',
-                label = 'Debug Mode',
-                icon = 'fas fa-bug',
-                checkbox = true,
-                checked = function()
-                    return debugEnabled
-                end,
-                onCheck = function(newState)
-                    debugEnabled = newState
-                end
-            },
-            {
-                name = 'notifications',
-                label = 'Notifications',
-                icon = 'fas fa-bell',
-                checkbox = true,
-                checked = function()
-                    return notificationsEnabled
-                end,
-                onCheck = function(newState)
-                    notificationsEnabled = newState
-                end
-            }
-        }
-    }
-})
-```
-
-### Complex Sub-menu Structure
-
-```lua
-exports['nbl-target']:addGlobalVehicle({
-    {
-        label = 'Vehicle Menu',
-        icon = 'fas fa-cog',
-        items = {
-            {
-                name = 'lock',
-                label = 'Lock/Unlock',
-                icon = 'fas fa-lock',
-                onSelect = function(entity) end
-            },
-            {
-                name = 'engine',
-                label = 'Engine',
-                icon = 'fas fa-car',
-                items = {
-                    {
-                        name = 'start',
-                        label = 'Start',
-                        icon = 'fas fa-play',
-                        onSelect = function(entity) end
-                    },
-                    {
-                        name = 'stop',
-                        label = 'Stop',
-                        icon = 'fas fa-stop',
-                        onSelect = function(entity) end
-                    }
-                }
-            },
-            {
-                name = 'doors',
-                label = 'Doors',
-                icon = 'fas fa-door-open',
-                items = {
-                    {
-                        name = 'front_left',
-                        label = 'Front Left',
-                        onSelect = function(entity) end
-                    },
-                    {
-                        name = 'front_right',
-                        label = 'Front Right',
-                        onSelect = function(entity) end
-                    }
-                }
-            }
-        }
-    }
-})
-```
-
-### Model Registration (ATMs and Static Objects)
-
-ATMs and other static world objects are **MAP props** - they're part of the world geometry. NBL Target automatically detects them using the models configured in `Config.MapObjectModels`.
-
-**Method 1: Using addModel() (Recommended)**
-
-```lua
-exports['nbl-target']:addModel({
-    'prop_atm_01',
-    'prop_atm_02',
-    'prop_atm_03',
-    'prop_fleeca_atm'
-}, {
-    label = "Use ATM",
-    icon = "fas fa-credit-card",
-    name = "use_atm",
+    label = 'Talk',
+    icon = 'fas fa-comment',
     distance = 2.0,
-    onSelect = function(entity, coords)
-        TriggerEvent('banking:openATM')
+    onSelect = function(data)
+        print('Talking to:', data.entity)
     end
 })
 ```
 
-**Method 2: Adding to Config (For Custom Mapping)**
-
-If you have custom mapping with new ATM models, add them to `Config.MapObjectModels`:
+### Target Players
 
 ```lua
-Config.MapObjectModels = {
-    'prop_atm_01',
-    'prop_atm_02',
-    'prop_atm_03',
-    'prop_fleeca_atm',
-    'your_custom_atm_model',  -- Custom mapping model
-}
-```
-
-Then register options for them:
-
-```lua
-exports['nbl-target']:addModel('your_custom_atm_model', {
-    label = "Use ATM",
-    icon = "fas fa-credit-card",
-    name = "use_atm",
-    onSelect = function(entity, coords)
-        TriggerEvent('banking:openATM')
+exports['nbl-target']:addGlobalPlayer({
+    label = 'Give Money',
+    icon = 'fas fa-money-bill',
+    onSelect = function(data)
+        local serverId = GetPlayerServerId(NetworkGetPlayerIndexFromPed(data.entity))
+        TriggerServerEvent('givemoney', serverId, 100)
     end
 })
 ```
 
-**How MAP Props Detection Works:**
-1. When you aim at an ATM, the raycast hits the wall/floor behind it
-2. The system detects this is a MAP prop (invalid entity)
-3. It searches for registered ATM models near the hit point
-4. If found within `Config.MapObjectMaxDistance`, the ATM is selected
-5. This works even when ATMs are inside buildings!
-
-**Troubleshooting:**
-- **ATM not detected**: Make sure the model name is in `Config.MapObjectModels` or registered via `addModel()`
-- **ATM detected too easily**: Lower `Config.MapObjectMaxDistance` (default: 2.5m)
-- **ATM hard to target**: Increase `Config.MapObjectMaxDistance` or `Config.MapObjectSearchRadius`
-
-### Using Exports
-
-```lua
-exports['nbl-target']:addGlobalVehicle({
-    label = "Repair",
-    name = "repair_vehicle",
-    export = "mechanic.repair",  -- Calls exports['mechanic']:repair(entity, coords, registration)
-    distance = 3.0
-})
-```
-
-### Using Events
+### Target Objects
 
 ```lua
 exports['nbl-target']:addGlobalObject({
-    label = "Open",
-    name = "open_object",
-    event = "myresource:openObject",  -- Triggers TriggerEvent('myresource:openObject', entity, coords, registration)
-    distance = 2.0
+    label = 'Pickup',
+    icon = 'fas fa-box',
+    distance = 2.0,
+    onSelect = function(data)
+        print('Picked up object:', data.entity)
+    end
 })
 ```
 
-### Using Server Events
+### Target Yourself
 
 ```lua
+exports['nbl-target']:addGlobalSelf({
+    label = 'Open Inventory',
+    icon = 'fas fa-backpack',
+    onSelect = function(data)
+        TriggerEvent('inventory:open')
+    end
+})
+```
+
+### Target Specific Models
+
+```lua
+exports['nbl-target']:addModel({'prop_atm_01', 'prop_atm_02', 'prop_atm_03'}, {
+    label = 'Access ATM',
+    icon = 'fas fa-credit-card',
+    distance = 1.5,
+    onSelect = function(data)
+        TriggerEvent('banking:openATM')
+    end
+})
+```
+
+### Target Specific Entity
+
+```lua
+local myPed = CreatePed(4, `a_m_y_business_01`, 100.0, 200.0, 30.0, 0.0, false, true)
+
+exports['nbl-target']:addLocalEntity(myPed, {
+    label = 'Talk to Bob',
+    icon = 'fas fa-user',
+    onSelect = function(data)
+        print('Hello from Bob!')
+    end
+})
+```
+
+## Custom Data
+
+Pass any extra keys in your options. They're available in callbacks via the `data` parameter:
+
+```lua
+exports['nbl-target']:addModel('prop_vend_snak_01', {
+    label = 'Buy Snack',
+    icon = 'fas fa-cookie',
+    
+    -- Custom keys
+    itemName = 'snack',
+    itemPrice = 50,
+    shopId = 'vending_01',
+    metadata = { category = 'food' },
+    
+    onSelect = function(data)
+        print(data.itemName)              -- "snack"
+        print(data.itemPrice)             -- 50
+        print(data.shopId)                -- "vending_01"
+        print(data.metadata.category)     -- "food"
+        print(data.entity)                -- entity handle
+        print(data.distance)              -- distance to entity
+    end
+})
+```
+
+## Bone Targeting
+
+Target specific vehicle parts using bone names:
+
+```lua
+-- Only shows when aiming at trunk
+exports['nbl-target']:addGlobalVehicle({
+    label = 'Open Trunk',
+    icon = 'fas fa-box-open',
+    bones = {'boot'},
+    
+    onSelect = function(data)
+        print('Bone targeted:', data.bone)  -- "boot"
+        SetVehicleDoorOpen(data.entity, 5, false, false)
+    end
+})
+
+-- Only shows when aiming at doors
+exports['nbl-target']:addGlobalVehicle({
+    label = 'Open Door',
+    icon = 'fas fa-door-open',
+    bones = {'door_dside_f', 'door_pside_f', 'door_dside_r', 'door_pside_r'},
+    
+    onSelect = function(data)
+        print('Door bone:', data.bone)
+    end
+})
+
+-- Only shows when aiming at hood/engine
+exports['nbl-target']:addGlobalVehicle({
+    label = 'Check Engine',
+    icon = 'fas fa-car-battery',
+    bones = {'bonnet', 'engine'},
+    
+    onSelect = function(data)
+        local health = GetVehicleEngineHealth(data.entity)
+        print('Engine health:', health)
+    end
+})
+```
+
+Available bones are configured in `config.lua` under `Config.VehicleBones`.
+
+## Submenus
+
+Create nested options:
+
+```lua
+exports['nbl-target']:addGlobalVehicle({
+    label = 'Vehicle Options',
+    icon = 'fas fa-car',
+    
+    items = {
+        {
+            label = 'Doors',
+            icon = 'fas fa-door-open',
+            items = {
+                {
+                    label = 'Lock',
+                    icon = 'fas fa-lock',
+                    onSelect = function(data)
+                        SetVehicleDoorsLocked(data.entity, 2)
+                    end
+                },
+                {
+                    label = 'Unlock',
+                    icon = 'fas fa-unlock',
+                    onSelect = function(data)
+                        SetVehicleDoorsLocked(data.entity, 0)
+                    end
+                }
+            }
+        },
+        {
+            label = 'Engine On',
+            icon = 'fas fa-power-off',
+            onSelect = function(data)
+                SetVehicleEngineOn(data.entity, true, true, false)
+            end
+        }
+    }
+})
+```
+
+## Checkboxes
+
+Toggle options with state:
+
+```lua
+local engineRunning = false
+
+exports['nbl-target']:addGlobalVehicle({
+    label = 'Engine Running',
+    icon = 'fas fa-power-off',
+    checkbox = true,
+    checked = function() return engineRunning end,
+    
+    onCheck = function(data)
+        -- data.checked contains the new state
+        engineRunning = data.checked
+        SetVehicleEngineOn(data.entity, data.checked, true, false)
+    end
+})
+```
+
+## Framework Conditions
+
+Built-in support for ESX/QBCore job, gang, group, and item checks:
+
+```lua
+-- Single job
+exports['nbl-target']:addGlobalVehicle({
+    label = 'Impound',
+    icon = 'fas fa-truck',
+    job = 'police',
+    onSelect = function(data) end
+})
+
+-- Multiple jobs
+exports['nbl-target']:addGlobalVehicle({
+    label = 'Impound',
+    icon = 'fas fa-truck',
+    job = {'police', 'sheriff'},
+    onSelect = function(data) end
+})
+
+-- Job with minimum grade
+exports['nbl-target']:addGlobalVehicle({
+    label = 'Impound',
+    icon = 'fas fa-truck',
+    job = { police = 2 },  -- Grade 2+
+    onSelect = function(data) end
+})
+
+-- Gang (QBCore)
 exports['nbl-target']:addGlobalPed({
-    label = "Search",
-    name = "search_ped",
-    serverEvent = "police:searchPed",  -- Triggers TriggerServerEvent('police:searchPed', entity, coords, registration)
-    distance = 1.5
+    label = 'Gang Stuff',
+    icon = 'fas fa-skull',
+    gang = 'ballas',
+    onSelect = function(data) end
+})
+
+-- Items required
+exports['nbl-target']:addModel('prop_toolchest_05', {
+    label = 'Repair',
+    icon = 'fas fa-wrench',
+    items = {'toolkit'},
+    onSelect = function(data) end
 })
 ```
 
-### Handler Methods Example
+## Events
+
+Trigger events instead of callbacks:
 
 ```lua
-local target = exports['nbl-target']:addGlobalVehicle({
-    label = "Lock Vehicle",
-    icon = "fas fa-lock"
+-- Client event
+exports['nbl-target']:addGlobalPed({
+    label = 'Open Shop',
+    icon = 'fas fa-store',
+    event = 'myresource:openShop',
+    shopId = 'general_01'
 })
 
--- Later, update dynamically
-target:setLabel("Unlock Vehicle")
-    :setIcon("fas fa-lock-open")
-    :setDistance(5.0)
+AddEventHandler('myresource:openShop', function(data)
+    print(data.shopId)    -- "general_01"
+    print(data.entity)    -- entity handle
+end)
 
--- Temporarily disable
-target:setEnabled(false)
-
--- Re-enable
-target:setEnabled(true)
-
--- Remove when done
-target:remove()
+-- Server event
+exports['nbl-target']:addGlobalObject({
+    label = 'Pickup',
+    icon = 'fas fa-hand-grab',
+    serverEvent = 'myresource:server:pickup',
+    itemId = 'loot_123'
+})
 ```
 
----
+## Exports
 
-## Advanced Features
+Call another resource's export:
 
-### Real-time Option Updates
-
-The menu automatically refreshes options based on `canInteract` conditions when open. This allows options to appear/disappear dynamically based on game state.
-
-**How it works:**
-- When menu is open, system checks `canInteract` functions every `refreshInterval` ms (default: 100ms)
-- If an option's `canInteract` changes from `false` to `true`, it appears
-- If it changes from `true` to `false`, it disappears
-- Only options that actually changed are updated (smart refresh)
-
-### Resource Auto-cleanup
-
-When a resource stops, all its registered options are automatically removed. This prevents orphaned options and memory leaks.
-
-**Manual cleanup (if needed):**
 ```lua
+exports['nbl-target']:addModel('prop_vend_water_01', {
+    label = 'Buy Water',
+    icon = 'fas fa-bottle-water',
+    export = 'ox_inventory.openNearbyInventory'
+})
+```
+
+## Handler Methods
+All registration exports (`addEntity`, `addModel`, `addGlobalVehicle`, etc.) return a **handler** object.
+
+- **Update**: `setLabel`, `setIcon`, `setDistance`, `setEnabled`, `setCanInteract`, `setOnSelect`, `setChecked`, `set`
+- **Read**: `get`, `getData`, `getId`
+- **Remove**: `remove`
+
+See the dedicated [Handler Methods documentation](docs/exports/HandlerMethods.md) for the full reference and examples.
+
+## Remove Options
+
+```lua
+-- Remove by handler
+local handler = exports['nbl-target']:addGlobalVehicle({...})
+handler:remove()
+
+-- Remove by ID
+exports['nbl-target']:remove(id)
+
+-- Remove by name
+exports['nbl-target']:removeByName('my_option_name')
+
+-- Remove all from a resource
 exports['nbl-target']:removeByResource('myresource')
 ```
 
-### Entity Type Detection
-
-The system automatically detects entity types:
-- `vehicle` - All vehicles
-- `ped` - NPCs (non-player peds)
-- `player` - Other players
-- `object` - Objects/props
-- `self` - The player themselves
-- `ground` - Ground/terrain (when clicking on ground)
-- `sky` - Sky/empty space (when clicking in sky)
-
-**Registering Options for Sky/Ground:**
+## State Exports
 
 ```lua
--- Options when clicking in the sky
-exports['nbl-target']:addGlobalSky({
-    label = "Weather Menu",
-    icon = "fas fa-cloud-sun",
-    name = "weather_menu",
-    onSelect = function()
-        TriggerEvent('weather:openMenu')
-    end
-})
+-- Check if targeting is active
+local active = exports['nbl-target']:isActive()
 
--- Options when clicking on the ground
-exports['nbl-target']:addGlobalGround({
-    label = "Place Object",
-    icon = "fas fa-cube",
-    name = "place_object",
-    onSelect = function(entity, coords)
-        SpawnObject(coords)
-    end
-})
-```
+-- Check if menu is open
+local menuOpen = exports['nbl-target']:isMenuOpen()
 
-### Menu Stability While Moving
-
-The menu **stays open** while you're moving, making it perfect for:
-- **Vehicles**: Open menu while driving, menu stays open
-- **Walking with Peds**: Walk alongside a ped, menu stays open
-- **Self Options**: Move around while menu is open
-
-**How it works:**
-- If you're in a vehicle and target that vehicle, menu never closes
-- If you're walking with a ped, menu stays open as long as you're close
-- Distance tolerance is increased to `maxDistance + 10.0` for movement
-- Entity position is updated in real-time during menu refresh
-
-### Cursor Feedback
-
-The cursor automatically changes when hovering over targetable entities, even if they don't have registered options. This prevents "cheating" by knowing which objects are interactive.
-
-### Limitations and What Doesn't Work
-
-**What Works:**
-- ✅ Dynamic entities (vehicles, peds, objects spawned by scripts)
-- ✅ Static MAP props (ATMs, vending machines) via model detection
-- ✅ Self-targeting (clicking on yourself)
-- ✅ Sky/Ground targeting (clicking in empty space or on ground)
-- ✅ Menu stays open while moving (in vehicles, with peds)
-
-**What Doesn't Work:**
-- ❌ **MAP props without model registration**: If an object isn't in `Config.MapObjectModels` or registered via `addModel()`, it won't be detected
-- ❌ **Objects behind walls**: Raycast hits the wall first, so objects completely hidden behind walls won't be detected (unless they're registered MAP models)
-- ❌ **Outline on peds**: `SetEntityDrawOutline` crashes on peds/players/self - always keep these disabled in config
-- ❌ **Very far objects**: Objects beyond `maxDistance` won't be detected (default: 100m)
-
-**Known Issues:**
-- MAP props detection requires the object to be within `Config.MapObjectMaxDistance` of the hit point
-- Tall objects (like ATMs) may require higher `MapObjectMaxDistance` values
-- Custom mapping models must be added to `Config.MapObjectModels` manually
-
----
-
-## Performance Optimizations
-
-NBL Target is built with performance in mind:
-
-### 1. Zero CPU When Inactive
-
-When the activation key is not pressed, the main thread sleeps for 500ms, resulting in **0ms CPU usage**.
-
-### 2. Optimized Raycast
-
-- Camera position is cached
-- Raycast is only performed when targeting mode is active
-- Maximum distance is configurable
-
-### 3. Smart Menu Refresh
-
-- Options are only refreshed if they actually changed
-- Hash comparison prevents unnecessary NUI updates
-- Checkbox states update efficiently (only visual update, no DOM rebuild)
-
-### 4. Automatic Entity Cleanup
-
-- Invalid entities are automatically removed every 30 seconds
-- Prevents memory leaks
-
-### 5. Protected Callbacks
-
-- All callbacks are wrapped in `pcall` to prevent crashes
-- Errors are logged but don't break the system
-
-### Performance Tips
-
-1. **Use Model Registration**: Instead of registering individual entities, use `addModel()` for props that appear multiple times
-2. **Limit Refresh Interval**: Increase `refreshInterval` if you don't need real-time updates
-3. **Keep canInteract Fast**: Avoid heavy operations inside `canInteract` functions
-4. **Disable When Not Needed**: Use `disable()` to turn off the registry system when not needed
-
----
-
-## Best Practices
-
-### 1. Always Set a Name
-
-Setting a `name` identifier makes it easier to remove options later:
-
-```lua
-exports['nbl-target']:addGlobalVehicle({
-    label = "Enter Vehicle",
-    name = "enter_vehicle"  -- Important!
-})
-```
-
-### 2. Use Appropriate Distances
-
-- Close interaction (search, pick up): `1.5m`
-- Medium interaction (enter vehicle, open door): `3.0m`
-- Long interaction (use ATM, talk to NPC): `5.0m`
-
-### 3. Validate in canInteract
-
-Use `canInteract` to validate conditions before showing options:
-
-```lua
-canInteract = function(entity, distance)
-    return distance <= 2.0 
-        and exports['inventory']:hasItem('key')
-        and not IsPedInAnyVehicle(PlayerPedId(), false)
-end
-```
-
-### 4. Use Functions for Checkbox State
-
-Always use functions for `checked` to enable real-time updates:
-
-```lua
--- Good: Function (updates automatically)
-checked = function()
-    return myVariable
+-- Get current target info
+local target = exports['nbl-target']:getCurrentTarget()
+if target then
+    print(target.entity)
+    print(target.entityType)
+    print(target.worldPos)
+    print(target.bone)
 end
 
--- Bad: Boolean (static, doesn't update)
-checked = false
+-- Get selected entity
+local entity = exports['nbl-target']:getSelectedEntity()
+
+-- Close menu
+exports['nbl-target']:closeMenu()
+
+-- Enable/disable
+exports['nbl-target']:disable()
+exports['nbl-target']:enable()
+local enabled = exports['nbl-target']:isEnabled()
+
+-- Deactivate completely
+exports['nbl-target']:deactivate()
 ```
 
-### 5. Store Handler References
+## Complete Example
 
-Store handler references to enable dynamic updates:
+See `example.lua` for comprehensive examples covering all features.
 
-```lua
-local vehicleOption = exports['nbl-target']:addGlobalVehicle({...})
+## Configuration
 
--- Later, update dynamically
-vehicleOption:setLabel("New Label")
-```
+Edit `config/config.lua` to customize:
 
----
+- **Controls**: Activation key, select key
+- **Targeting**: Max distance, raycast flags, self-targeting
+- **Vehicle Bones**: Which bones can be targeted and their detection radius
+- **Outline**: Colors, enabled entity types
+- **Marker**: Type, color, scale, animations
+- **Menu**: Scale, animation duration, refresh interval
+- **Map Objects**: Static props that should be targetable
 
-## Troubleshooting
+## API Reference
 
-### Checkbox not updating
+### Registration
 
-**Symptoms:** Checkbox doesn't reflect current state when reopening menu.
+| Export | Description |
+|--------|-------------|
+| `addGlobalVehicle(options)` | Target any vehicle |
+| `addGlobalPed(options)` | Target any ped |
+| `addGlobalPlayer(options)` | Target any player |
+| `addGlobalSelf(options)` | Target yourself |
+| `addGlobalObject(options)` | Target any object |
+| `addGlobalSky(options)` | Target sky/world position (no entity) |
+| `addGlobalGround(options)` | Target ground/world position (no entity) |
+| `addGlobalOption(entityType, options)` | Target a custom global entity type (`"vehicle"`, `"ped"`, `"player"`, `"object"`, `"self"`, `"sky"`, `"ground"`, etc.) |
+| `addModel(models, options)` | Target specific model(s) |
+| `addBone(bones, options)` | Target specific bone(s) |
+| `addEntity(entity, options)` | Target networked entity |
+| `addLocalEntity(entity, options)` | Target local entity |
 
-**Solutions:**
-1. Use a **function** for `checked`, not a boolean
-2. Ensure `refreshInterval` is not `0`
-3. Check that your variable is in the correct scope
-4. Verify `onCheck` is updating your variable correctly
+### Removal
 
-### Checkbox not toggling
+| Export | Description |
+|--------|-------------|
+| `remove(handlerOrId)` | Generic remove by handler or ID |
+| `removeEntity(id)` | Remove an entity registration |
+| `removeLocalEntity(id)` | Remove a local entity registration |
+| `removeModel(id)` | Remove a model registration |
+| `removeBone(id)` | Remove a bone registration |
+| `removeGlobalVehicle(id)` | Remove a global vehicle option |
+| `removeGlobalPed(id)` | Remove a global ped option |
+| `removeGlobalPlayer(id)` | Remove a global player option |
+| `removeGlobalSelf(id)` | Remove a global self option |
+| `removeGlobalObject(id)` | Remove a global object option |
+| `removeGlobalSky(id)` | Remove a global sky option |
+| `removeGlobalGround(id)` | Remove a global ground option |
+| `removeGlobalOption(id)` | Remove a generic global option |
+| `removeByName(name)` | Remove by option name |
+| `removeByResource(resourceName)` | Remove all from a resource |
 
-**Symptoms:** Clicking checkbox doesn't do anything.
+### State
 
-**Solutions:**
-1. Check console for errors (F8)
-2. Verify `onCheck` callback is defined
-3. Ensure checkbox is not in a parent option with `items` (not allowed)
+| Export | Description |
+|--------|-------------|
+| `isActive()` | Is targeting mode active |
+| `isMenuOpen()` | Is context menu open |
+| `isEnabled()` | Is targeting enabled |
+| `getCurrentTarget()` | Get current target info |
+| `getSelectedEntity()` | Get entity of open menu |
 
-### Menu not opening
+### Control
 
-**Symptoms:** Clicking on entity doesn't open the menu.
-
-**Solutions:**
-1. Check console for errors
-2. Verify entity has registered options
-3. Check `canInteract` returns `true`
-4. Ensure distance is within `maxDistance`
-5. Verify registry is enabled: `exports['nbl-target']:isEnabled()`
-
-### Options not updating
-
-**Symptoms:** Options don't appear/disappear when conditions change.
-
-**Solutions:**
-1. Check `Config.Menu.refreshInterval` is not `0`
-2. Verify `canInteract` function is correct
-3. Check console for errors in `canInteract`
-4. Ensure menu is open (refresh only happens when menu is open)
-
-### Performance Issues
-
-**Symptoms:** High CPU usage or lag.
-
-**Solutions:**
-1. Increase `Config.Menu.refreshInterval` (e.g., 1000ms)
-2. Simplify `canInteract` and `checked` functions
-3. Use model registration instead of individual entity registration
-4. Disable registry when not needed: `exports['nbl-target']:disable()`
-
-### ATM or MAP Object Not Detected
-
-**Symptoms:** Can't target ATMs or other static objects.
-
-**Solutions:**
-1. **Check Model Registration**: Ensure the model is registered via `addModel()` or in `Config.MapObjectModels`
-2. **Verify Model Name**: Use the exact model name (e.g., `'prop_atm_01'` not `'atm'`)
-3. **Check Distance Settings**: Increase `Config.MapObjectSearchRadius` or `Config.MapObjectMaxDistance`
-4. **Test Model Hash**: Print the model hash to verify: `print(joaat('prop_atm_01'))`
-5. **Custom Mapping**: If using custom mapping, add the model name to `Config.MapObjectModels`
-
-**Example Debug:**
-```lua
--- Test if model exists
-local modelHash = joaat('prop_atm_01')
-local obj = GetClosestObjectOfType(x, y, z, 5.0, modelHash, false, false, false)
-print("Model hash:", modelHash, "Found object:", obj)
-```
-
-### Menu Closes While Moving
-
-**Symptoms:** Menu closes when driving or walking.
-
-**Solutions:**
-1. **Vehicle**: If targeting a vehicle you're in, menu should stay open automatically
-2. **Distance**: Menu allows `maxDistance + 10.0` for movement tolerance
-3. **Entity Type**: Ensure you're targeting the correct entity (vehicle, ped, self)
-4. **Check Entity**: Verify entity is still valid: `GetEntityType(entity) ~= 0`
-
----
-
-## Technical Details
-
-### How Checkboxes Work Internally
-
-1. **Registration**: When you register a checkbox, the system stores the `checked` function (or boolean) and `onCheck` callback
-2. **Display**: When menu opens, system calls `checked()` to get initial state
-3. **Refresh Loop**: Every `refreshInterval` ms, system calls all `checked()` functions
-4. **Click Handler**: When user clicks checkbox, JS sends `{id, checked: newState}` to Lua
-5. **State Update**: Lua finds the registration by ID and calls `onCheck(newState)`
-6. **Visual Update**: Checkbox visual state is updated immediately in JS, then refreshed from Lua on next cycle
-
-### How Refresh System Works
-
-1. **Thread Loop**: Main refresh thread runs every `refreshInterval` ms (default: 100ms) when menu is open
-2. **Option Collection**: System calls `GetAvailableOptions()` which:
-   - Gets all registrations for the entity
-   - Calls `canInteract` for each option
-   - Calls `checked()` for each checkbox
-   - Processes sub-items recursively
-3. **Hash Comparison**: System creates a hash of all option IDs, labels, and checkbox states
-4. **Smart Update**: Only sends to NUI if hash changed (prevents unnecessary updates)
-5. **NUI Update**: JS receives new options and updates only what changed (checkboxes update visually without DOM rebuild)
-
-### ID System for Sub-items
-
-- Sub-items get stable IDs based on `parentId + name` (or index if no name)
-- IDs are stored in `subItemIdMap` to ensure consistency across refreshes
-- This allows checkboxes in sub-menus to maintain their state correctly
-
-### FiveM Export Function Wrapping
-
-When you pass functions via exports (`exports['nbl-target']:addGlobalSelf(...)`), FiveM wraps them in callable tables. The system handles both:
-- Normal functions: `type(checked) == "function"`
-- FiveM-wrapped functions: `type(checked) == "table"`
-
-### How MAP Props Detection Works
-
-**The Problem:**
-Some objects in GTA V (ATMs, vending machines, etc.) are **static MAP props** - they're part of the world geometry, not dynamic entities. When you aim at them:
-- The raycast hits the wall/floor behind them
-- `GetEntityType` returns `0` (invalid entity)
-- Normal entity detection fails
-
-**The Solution:**
-1. **Raycast Detection**: System performs raycast and gets hit position
-2. **Entity Validation**: If `GetEntityType(entity) == 0`, it's a MAP prop
-3. **Model Search**: System searches for registered models near hit point using `GetClosestObjectOfType`
-4. **Distance Check**: Object must be within `Config.MapObjectMaxDistance` of hit point
-5. **Selection**: If found, the object is returned as the target entity
-
-**Technical Implementation:**
-- Uses `GetClosestObjectOfType` with model hash to find objects
-- Searches within `Config.MapObjectSearchRadius` meters
-- Accepts objects within `Config.MapObjectMaxDistance` of hit point
-- Works with both registered models (`addModel()`) and config models (`Config.MapObjectModels`)
-- Handles tall objects (like ATMs) by using larger acceptance distance
-
-**Why This Works:**
-- MAP props are always at fixed world positions
-- `GetClosestObjectOfType` can find them even when raycast hits geometry
-- Distance check ensures precision (you must aim reasonably close)
-
-Both are called using `pcall()` for safety.
-
----
-
-## File Structure
-
-```
-nbl-target/
-├── config/
-│   └── config.lua              # Main configuration file (with comments)
-├── client/
-│   ├── modules/
-│   │   ├── raycast.lua         # Raycast system for entity detection
-│   │   ├── entity.lua           # Entity utilities and type detection
-│   │   └── visual.lua           # Visual feedback (outline, markers)
-│   ├── framework/
-│   │   ├── init.lua            # Framework detection and unified interface
-│   │   ├── esx.lua             # ESX-specific logic (job, items, groups)
-│   │   └── qbcore.lua          # QBCore-specific logic (job, gang, items, groups)
-│   ├── bridge/
-│   │   ├── ox_target.lua       # ox_target compatibility bridge
-│   │   └── qb_target.lua       # qb-target / qtarget compatibility bridge
-│   ├── registry.lua            # Option registration and management
-│   ├── nui.lua                  # NUI bridge (Lua ↔ JavaScript)
-│   └── main.lua                 # Main client script (activation, input)
-├── web/
-│   ├── index.html              # NUI HTML structure
-│   ├── css/
-│   │   └── style.css           # Menu styling (dark theme, animations, checkboxes)
-│   └── js/
-│       └── app.js               # Menu logic (open/close, sub-menus, checkboxes, refresh)
-├── docs/                        # Documentation files (if applicable)
-├── fxmanifest.lua              # Resource manifest
-├── LICENSE                      # License file
-└── README.md                    # This file
-```
-
----
-
-## Complete Parameter Reference
-
-### Main Option Parameters
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `label` | `string` | Yes | - | Display text in menu |
-| `name` | `string` | No | - | Unique identifier |
-| `icon` | `string` | No | `"fas fa-hand-pointer"` | FontAwesome icon class |
-| `distance` | `number` | No | `3.0` | Max interaction distance (meters) |
-| `canInteract` | `function` | No | Always `true` | Conditional display function |
-| `onSelect` | `function` | No | - | Callback when option selected |
-| `checkbox` | `boolean` | No | `false` | Enable checkbox mode |
-| `checked` | `function` or `boolean` | No | - | Checkbox state (function recommended) |
-| `onCheck` | `function` | No | - | Callback when checkbox toggled |
-| `job` | `string` or `table` | No | - | Job filter (ESX/QBCore) - auto-checked |
-| `gang` | `string` or `table` | No | - | Gang filter (QBCore only) - auto-checked |
-| `groups` | `string` or `table` | No | - | Groups filter (ESX/QBCore) - auto-checked |
-| `item` | `string` or `table` | No | - | Item requirement (ESX/QBCore) - auto-checked |
-| `export` | `string` | No | - | Export to call (`"resource.export"`) |
-| `event` | `string` | No | - | Client event name |
-| `serverEvent` | `string` | No | - | Server event name |
-| `command` | `string` | No | - | Command to execute |
-| `items` | `table` | No | - | Sub-menu items array |
-| `shouldClose` | `boolean` | No | `false` | Close menu after selection |
-| `enabled` | `boolean` | No | `true` | Enable/disable option |
-
-### Sub-menu Item Parameters
-
-Sub-menu items support all the same parameters as main options, except:
-- ❌ Cannot have both `checkbox = true` AND `items` (items will be ignored)
-- ✅ Can have `checkbox = true` OR `items` (but not both)
-
----
-
-## Common Patterns
-
-### Pattern 1: Settings Menu with Checkboxes
-
-```lua
-local settings = {
-    debug = false,
-    notifications = true,
-    godmode = false
-}
-
-exports['nbl-target']:addGlobalSelf({
-    {
-        label = 'Settings',
-        icon = 'fas fa-cog',
-        items = {
-            {
-                name = 'debug',
-                label = 'Debug Mode',
-                icon = 'fas fa-bug',
-                checkbox = true,
-                checked = function() return settings.debug end,
-                onCheck = function(state) settings.debug = state end
-            },
-            {
-                name = 'notifications',
-                label = 'Notifications',
-                icon = 'fas fa-bell',
-                checkbox = true,
-                checked = function() return settings.notifications end,
-                onCheck = function(state) settings.notifications = state end
-            }
-        }
-    }
-})
-```
-
-### Pattern 2: Vehicle Actions with Sub-menus
-
-```lua
-exports['nbl-target']:addGlobalVehicle({
-    {
-        label = 'Vehicle',
-        icon = 'fas fa-car',
-        items = {
-            {
-                name = 'doors',
-                label = 'Doors',
-                icon = 'fas fa-door-open',
-                items = {
-                    {name = 'front_left', label = 'Front Left', onSelect = function(e) end},
-                    {name = 'front_right', label = 'Front Right', onSelect = function(e) end}
-                }
-            },
-            {
-                name = 'engine',
-                label = 'Engine',
-                icon = 'fas fa-cog',
-                items = {
-                    {name = 'start', label = 'Start', onSelect = function(e) end},
-                    {name = 'stop', label = 'Stop', onSelect = function(e) end}
-                }
-            }
-        }
-    }
-})
-```
-
-### Pattern 3: Conditional Options
-
-```lua
-exports['nbl-target']:addGlobalVehicle({
-    {
-        label = 'Lock Vehicle',
-        icon = 'fas fa-lock',
-        canInteract = function(entity, distance)
-            return exports['keys']:hasKeys(entity) and distance <= 3.0
-        end,
-        onSelect = function(entity)
-            exports['vehicles']:toggleLock(entity)
-        end
-    }
-})
-```
-
----
+| Export | Description |
+|--------|-------------|
+| `enable()` | Enable targeting |
+| `disable()` | Disable targeting |
+| `closeMenu()` | Close context menu |
+| `deactivate()` | Deactivate targeting mode |
 
 ## License
 
-This resource is **free and open source**. See `LICENSE` file for complete license details.
-
-**Summary:**
-- ✅ **Free to use** - No cost, no payments, no subscriptions
-- ✅ **Open Source** - Source code is available and modifiable
-- ✅ **Free to modify** - You can customize it to your needs
-- ✅ **Free to distribute** - Share with others (with attribution)
-- ❌ **Not for commercial resale** - Cannot be sold or included in paid packs
-
----
-
-## 🔍 Search Keywords
-
-This resource can be found by searching for:
-- `nbl-target`
-- `nbl target`
-- `nebula target`
-- `ox_target replacement`
-- `qb-target replacement`
-- `qtarget replacement`
-- `fivem target system`
-- `fivem context menu`
-- `fivem targeting`
-- `ox_target alternative`
-- `qb-target alternative`
-- `compatible target system`
-- `drop-in target replacement`
-- `free target system`
-- `open source target`
-- `free fivem target`
-- `open source fivem target`
-- `free ox_target alternative`
-- `free qb-target alternative`
-
----
-
-## 📝 Changelog
-
-### Version 2.0.0
-- ✅ Added full compatibility with `ox_target` and `qb-target` via bridge system
-- ✅ Added `addGlobalSky()` and `addGlobalGround()` exports for sky/ground targeting
-- ✅ Optimized performance (lowered refresh interval, optimized loops, caching)
-- ✅ Fixed configuration loading bugs (lazy-loading pattern)
-- ✅ Improved error handling and stability
-- ✅ Enhanced documentation
-
----
-
-**Developed with ❤️ for the FiveM community**
+See LICENSE file.

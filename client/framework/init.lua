@@ -301,11 +301,11 @@ function Framework.WrapCanInteract(original, wrapper)
         end
     end
 
-    return function(entity, distance, coords, name, bone)
+    return function(data)
         if not wrapper() then
             return false
         end
-        local ok, result = pcall(original, entity, distance, coords, name, bone)
+        local ok, result = pcall(original, data)
         if ok then
             return result == true or result == nil
         end

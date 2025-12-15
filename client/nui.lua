@@ -3,18 +3,20 @@ NUI = {
     currentEntity = nil,
     currentEntityType = nil,
     currentWorldPos = nil,
+    currentBone = nil,
     openedAt = 0,
     lastOptionsHash = nil,
     refreshPaused = false
 }
 
-function NUI:Open(options, screenPos, entity, entityType, worldPos)
+function NUI:Open(options, screenPos, entity, entityType, worldPos, bone)
     if #options == 0 then return end
     
     self.isOpen = true
     self.currentEntity = entity
     self.currentEntityType = entityType
     self.currentWorldPos = worldPos
+    self.currentBone = bone
     self.openedAt = GetGameTimer()
     self.lastOptionsHash = self:HashOptions(options)
     self.refreshPaused = false
@@ -45,6 +47,7 @@ function NUI:Close(clearSubItems)
     self.currentEntity = nil
     self.currentEntityType = nil
     self.currentWorldPos = nil
+    self.currentBone = nil
     self.openedAt = 0
     self.lastOptionsHash = nil
     self.refreshPaused = false
@@ -116,7 +119,7 @@ function NUI:Refresh()
     
     self:UpdateWorldPos()
     
-    local options = Registry:GetAvailableOptions(entity, self.currentEntityType, self.currentWorldPos)
+    local options = Registry:GetAvailableOptions(entity, self.currentEntityType, self.currentWorldPos, self.currentBone)
     local optionCount = #options
     
     if optionCount == 0 then
@@ -144,6 +147,7 @@ function NUI:IsOpen() return self.isOpen end
 function NUI:GetCurrentEntity() return self.currentEntity end
 function NUI:GetCurrentEntityType() return self.currentEntityType end
 function NUI:GetCurrentWorldPos() return self.currentWorldPos end
+function NUI:GetCurrentBone() return self.currentBone end
 
 function NUI:GetTimeSinceOpen()
     return self.isOpen and (GetGameTimer() - self.openedAt) or 0
@@ -221,12 +225,13 @@ RegisterNUICallback("select", function(data, cb)
     
     local entity = NUI.currentEntity
     local worldPos = NUI.currentWorldPos
+    local bone = NUI.currentBone
     local shouldClose = data.shouldClose
     
     NUI:Close(false)
     
     CreateThread(function()
-        Registry:OnSelect(optionId, entity, worldPos)
+        Registry:OnSelect(optionId, entity, worldPos, bone)
         Registry:ClearActiveSubItems()
         
         if shouldClose and Target_Deactivate then
@@ -265,7 +270,5 @@ RegisterNUICallback("check", function(data, cb)
     local optionId = tonumber(data.id)
     if not optionId then return end
     
-    Registry:OnCheck(optionId, NUI.currentEntity, NUI.currentWorldPos, data.checked == true)
+    Registry:OnCheck(optionId, NUI.currentEntity, NUI.currentWorldPos, data.checked == true, NUI.currentBone)
 end)
-
-

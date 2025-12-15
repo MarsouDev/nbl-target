@@ -3,7 +3,7 @@ game 'gta5'
 lua54 'yes'
 
 name 'nbl-target'
-description 'Modern context menu / targeting system for FiveM'
+description 'Modern targeting system for FiveM'
 author 'Nebula'
 version '2.0.0'
 license 'Custom - See LICENSE file'
@@ -21,9 +21,7 @@ client_scripts {
     'client/registry.lua',
     'client/nui.lua',
     'client/main.lua',
-    'client/framework/init.lua',
-    'client/bridge/ox_target.lua',
-    'client/bridge/qb_target.lua'
+    'client/framework/init.lua'
 }
 
 files {
@@ -33,4 +31,3 @@ files {
     'web/css/style.css',
     'web/js/app.js'
 }
-

@@ -85,9 +85,9 @@ CreateThread(function()
                 local hover = State.lastHover
                 if not isMenuOpen and hover and hover.hasOptions then
                     if hover.entity == 0 or Entity:IsValid(hover.entity) then
-                        local options = Registry:GetAvailableOptions(hover.entity, hover.entityType, hover.worldPos)
+                        local options = Registry:GetAvailableOptions(hover.entity, hover.entityType, hover.worldPos, hover.bone)
                         if #options > 0 then
-                            NUI:Open(options, State.cursorPos, hover.entity, hover.entityType, hover.worldPos)
+                            NUI:Open(options, State.cursorPos, hover.entity, hover.entityType, hover.worldPos, hover.bone)
                         end
                     end
                 end
@@ -121,13 +121,15 @@ exports('getCurrentTarget', function()
         return {
             entity = NUI:GetCurrentEntity(),
             entityType = NUI:GetCurrentEntityType(),
-            worldPos = NUI:GetCurrentWorldPos()
+            worldPos = NUI:GetCurrentWorldPos(),
+            bone = NUI:GetCurrentBone()
         }
     elseif State.lastHover then
         return {
             entity = State.lastHover.entity,
             entityType = State.lastHover.entityType,
-            worldPos = State.lastHover.worldPos
+            worldPos = State.lastHover.worldPos,
+            bone = State.lastHover.bone
         }
     end
     return nil
@@ -142,6 +144,7 @@ exports('closeMenu', function() NUI:Close() end)
 exports('addEntity', function(entity, options) return Registry:AddEntity(entity, options) end)
 exports('addLocalEntity', function(entity, options) return Registry:AddLocalEntity(entity, options) end)
 exports('addModel', function(model, options) return Registry:AddModel(model, options) end)
+exports('addBone', function(bone, options) return Registry:AddBone(bone, options) end)
 exports('addGlobalVehicle', function(options) return Registry:AddGlobalVehicle(options) end)
 exports('addGlobalPed', function(options) return Registry:AddGlobalPed(options) end)
 exports('addGlobalPlayer', function(options) return Registry:AddGlobalPlayer(options) end)
@@ -161,6 +164,7 @@ end
 exports('removeEntity', HandleRemove)
 exports('removeLocalEntity', HandleRemove)
 exports('removeModel', HandleRemove)
+exports('removeBone', HandleRemove)
 exports('removeGlobalVehicle', HandleRemove)
 exports('removeGlobalPed', HandleRemove)
 exports('removeGlobalPlayer', HandleRemove)

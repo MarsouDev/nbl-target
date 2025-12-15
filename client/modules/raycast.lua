@@ -171,12 +171,41 @@ local function PerformRaycast(startPos, endPos, flags, ignoreEntity)
     return false, worldPos, normal, 0, material or 0
 end
 
+local function GetClosestBone(entity, worldPos)
+    if not entity or entity == 0 then return nil end
+    
+    local entityType = GetEntityType(entity)
+    if entityType ~= 2 then return nil end
+    
+    local bones = Config.VehicleBones
+    if not bones then return nil end
+    
+    local closestBone = nil
+    local closestDist = math.huge
+    
+    for boneName, boneData in pairs(bones) do
+        local boneIndex = GetEntityBoneIndexByName(entity, boneName)
+        if boneIndex ~= -1 then
+            local bonePos = GetWorldPositionOfEntityBone(entity, boneIndex)
+            local dist = #(worldPos - bonePos)
+            local threshold = boneData.radius or 0.5
+            
+            if dist < threshold and dist < closestDist then
+                closestDist = dist
+                closestBone = boneName
+            end
+        end
+    end
+    
+    return closestBone
+end
+
 function Raycast:FromScreen(screenPos, maxDistance, flags, ignoreEntity)
     UpdateCameraCache()
     UpdateScreenResolution()
     
     if not CameraCache.matrixValid then
-        return false, vector3(0, 0, 0), vector3(0, 0, 0), 0, 0
+        return false, vector3(0, 0, 0), vector3(0, 0, 0), 0, 0, nil
     end
     
     local camPos = CameraCache.camPos
@@ -193,19 +222,22 @@ function Raycast:FromScreen(screenPos, maxDistance, flags, ignoreEntity)
     local hit, worldPos, normal, entity, material = PerformRaycast(camPos, endPoint, rayFlags, ignoreEntity)
     
     if hit then
+        local bone = nil
+        
         if IsEntityUsable(entity) then
-            return true, worldPos, normal, entity, material
+            bone = GetClosestBone(entity, worldPos)
+            return true, worldPos, normal, entity, material, bone
         end
         
         local nearbyObj = FindNearbyMapObject(worldPos)
         if nearbyObj ~= 0 then
-            return true, worldPos, normal, nearbyObj, material
+            return true, worldPos, normal, nearbyObj, material, nil
         end
         
-        return true, worldPos, normal, 0, material
+        return true, worldPos, normal, 0, material, nil
     end
     
-    return false, worldPos or vector3(0, 0, 0), normal or vector3(0, 0, 0), 0, material or 0
+    return false, worldPos or vector3(0, 0, 0), normal or vector3(0, 0, 0), 0, material or 0, nil
 end
 
 function Raycast:GetCursorPosition()
